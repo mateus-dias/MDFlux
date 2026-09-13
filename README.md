@@ -21,6 +21,12 @@ Os botões “Testar grátis”, “Testar demonstração” e “Entrar” semp
 
 Todos os CTAs comerciais usam a configuração centralizada do WhatsApp `+55 16 99775-4245`.
 
+## Domínio do painel
+
+O projeto reconhece automaticamente o hostname `app.mdflux.com.br`. Quando carregado nesse subdomínio, ele oculta o site comercial e apresenta diretamente o login em tela dedicada. O login não pode ser fechado nesse domínio e, ao sair do painel, o usuário retorna à tela de acesso.
+
+Na Netlify, adicione `app.mdflux.com.br` como alias do mesmo projeto. No DNS do domínio, crie um registro `CNAME` com nome `app` apontando para o endereço `.netlify.app` da aplicação.
+
 ## Supabase
 
 1. Crie ou selecione o projeto Supabase.
