@@ -35,6 +35,9 @@ button, a, input, select, textarea { min-height: 40px; }
 .status, .list-row span:last-child { font-size: 11px; white-space: nowrap; }
 
 @media (max-width: 1000px) {
+  .topbar .brand { flex: 0 0 auto; }
+  .topbar .nav-actions { margin-left: auto; flex: 0 0 auto; }
+  .topbar .menu { flex: 0 0 auto; margin-left: 10px; }
   .topbar.nav-open nav {
     display: flex; position: absolute; left: 16px; right: 16px; top: calc(100% + 1px);
     padding: 14px; flex-direction: column; gap: 4px; background: #fff;
@@ -76,7 +79,9 @@ button, a, input, select, textarea { min-height: 40px; }
 @media (max-width: 380px) {
   .topbar { padding-inline: 14px; }
   .brand img { width: 94px; }
-  .nav-actions .primary { font-size: 11px; padding-inline: 9px; }
+  .topbar .nav-actions { margin-left: auto; }
+  .topbar .nav-actions .primary { font-size: 11px; padding-inline: 9px; }
+  .topbar .menu { margin-left: 6px; padding-inline: 4px; }
   .hero { padding-inline: 16px; }
   .pain, .features, .plans, .faq, .flow { padding-inline: 16px; }
   .app-body main { padding: 14px; }
