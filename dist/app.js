@@ -25,4 +25,6 @@ $('#submit-login').onclick=()=>{const login=$('#login-email').value.trim().toLow
 $('#login-email').addEventListener('keydown',e=>{if(e.key==='Enter')$('#continue-login').click()});$('#password').addEventListener('keydown',e=>{if(e.key==='Enter')$('#submit-login').click()});
 $('#record-form').onsubmit=e=>{e.preventDefault();$('#record-modal').classList.add('hidden');toast('Você está utilizando a demonstração. Contrate um plano para salvar.')};
 $('#app-nav').onclick=e=>{const b=e.target.closest('[data-module]');if(!b)return;$$('#app-nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderModule(b.dataset.module);$('.sidebar').classList.remove('open')};$('.app-menu').onclick=()=>$('.sidebar').classList.toggle('open');$('#notif').onclick=()=>toast('3 notificações: estoque baixo, conta vencendo e agendamento próximo');
+$('.menu').onclick=()=>{const open=$('.topbar').classList.toggle('nav-open');$('.menu').setAttribute('aria-expanded',String(open));$('.menu').textContent=open?'×':'☰'};
+$$('.topbar nav a').forEach(link=>link.addEventListener('click',()=>{$('.topbar').classList.remove('nav-open');$('.menu').setAttribute('aria-expanded','false');$('.menu').textContent='☰'}));
 if(IS_APP_DOMAIN)openLogin();

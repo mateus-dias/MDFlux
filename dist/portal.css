@@ -1,3 +1,85 @@
 .modal-wrap.portal-login {
   background: radial-gradient(circle at 50% 20%, #123d75 0, #061b42 48%, #030e24 100%);
 }
+
+.mini-logo {
+  width: 42px; height: 28px; padding: 4px; background: #fff; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+}
+.mini-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.app-brand {
+  margin: 0 4px 20px; padding: 8px 10px; height: 54px; background: #fff; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.app-brand img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.login-logo {
+  width: min(220px, 75%); height: 76px; margin: 0 auto 20px; padding: 7px 10px;
+  background: #fff; border: 1px solid #e4eaf2; border-radius: 12px;
+}
+.login-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.brand-symbol {
+  width: min(210px, 70%); height: 70px; padding: 8px 14px; background: #fff;
+  border-radius: 13px;
+}
+.brand-symbol img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+html, body { max-width: 100%; overflow-x: hidden; }
+button, a, input, select, textarea { min-height: 40px; }
+.mini-app button, .password button, .close, .menu, .app-menu, .profile button, .data-row button { min-height: 0; }
+.sidebar nav button, .exit { min-height: 42px; font-size: 14px; }
+.mini-main small, .mini-head button, .mini-kpis span, .tasks p, .window-bar span { font-size: 10px; }
+.profile b { font-size: 13px; }
+.profile small, .company small, .kpi > div, .filters button { font-size: 12px; }
+.company b, .list-row, .data-row { font-size: 13px; }
+.kpi small, .plan li { font-size: 13px; }
+.status, .list-row span:last-child { font-size: 11px; white-space: nowrap; }
+
+@media (max-width: 1000px) {
+  .topbar.nav-open nav {
+    display: flex; position: absolute; left: 16px; right: 16px; top: calc(100% + 1px);
+    padding: 14px; flex-direction: column; gap: 4px; background: #fff;
+    border: 1px solid #e4eaf2; border-radius: 12px; box-shadow: 0 20px 45px rgba(8,34,78,.16);
+  }
+  .topbar.nav-open nav a { padding: 11px 12px; border-radius: 8px; min-height: 44px; }
+  .topbar.nav-open nav a:hover { background: #f1f6fc; }
+}
+
+@media (max-width: 720px) {
+  h1 { font-size: clamp(36px, 12vw, 48px); line-height: 1.08; }
+  h2 { font-size: clamp(30px, 9vw, 40px); }
+  .hero-copy > p, .lead { font-size: 16px; line-height: 1.6; }
+  .hero-buttons > * { width: 100%; display: flex; align-items: center; justify-content: center; }
+  .trust { gap: 10px 16px; }
+  .logos div { gap: 18px 24px; font-size: 12px; }
+  .flow-map { height: 320px; }
+  .flow-map:before { inset: 34px; }
+  .flow-center { width: 112px; height: 112px; inset: auto; left: 50%; top: 50%; transform: translate(-50%,-50%); }
+  .orbit { width: 82px; height: 66px; }
+  .o1 { left: 0; top: 40%; }.o2 { right: 0; top: 40%; }.o3 { left: 50%; top: 0; transform: translateX(-50%); }.o4 { left: 50%; bottom: 0; transform: translateX(-50%); }
+  .dash-head, .module-head { flex-direction: column; }
+  .filters { width: 100%; max-width: 100%; padding-bottom: 4px; }
+  .filters button { flex: 0 0 auto; min-height: 40px; }
+  .module-tools { width: 100%; justify-content: stretch; }
+  .module-tools button { flex: 1; }
+  .table-card { padding: 10px; overflow: visible; background: transparent; border: 0; }
+  .table-header { display: none; }
+  .data-row { min-width: 0; grid-template-columns: 1fr auto; gap: 7px 12px; padding: 14px; margin-bottom: 10px; background: #fff; border: 1px solid #e1e8f0; border-radius: 10px; }
+  .data-row > :nth-child(2), .data-row > :nth-child(3) { color: #65738a; }
+  .data-row > :nth-child(3), .data-row > :nth-child(4) { text-align: right; }
+  .list-row { grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .list-row > :nth-child(3), .list-row > :nth-child(4) { text-align: right; }
+  .form-card { width: 100%; }
+  .form-actions { position: sticky; bottom: -28px; background: white; padding: 14px 0 4px; }
+  .form-actions button { flex: 1; }
+}
+
+@media (max-width: 380px) {
+  .topbar { padding-inline: 14px; }
+  .brand img { width: 94px; }
+  .nav-actions .primary { font-size: 11px; padding-inline: 9px; }
+  .hero { padding-inline: 16px; }
+  .pain, .features, .plans, .faq, .flow { padding-inline: 16px; }
+  .app-body main { padding: 14px; }
+  .kpi strong { font-size: 20px; }
+  .login-card { padding-inline: 18px; }
+}

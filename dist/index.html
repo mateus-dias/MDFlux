@@ -4,7 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="MD Flux — sua gestão em um só lugar.">
   <title>MD Flux | Gestão empresarial</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2300143a'/%3E%3Cpath d='M14 44V20l12 13 12-13v24M31 32h18m-7-7 7 7-7 7' fill='none' stroke='%2300c8ff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/png" href="assets/md-flux.png">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="portal.css">
@@ -15,7 +15,7 @@
     <a class="brand" href="#home"><img src="assets/md-flux.png" alt="MD Flux"><span class="brand-text">MD <b>Flux</b></span></a>
     <nav><a href="#recursos">Recursos</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#faq">FAQ</a></nav>
     <div class="nav-actions"><button class="ghost" data-action="login">Entrar</button><button class="primary" data-action="demo">Testar grátis</button></div>
-    <button class="menu" aria-label="Abrir menu">☰</button>
+    <button class="menu" aria-label="Abrir menu" aria-expanded="false">☰</button>
   </header>
 
   <main id="marketing">
@@ -28,7 +28,7 @@
       </div>
       <div class="hero-visual">
         <div class="glow"></div><div class="window"><div class="window-bar"><i></i><i></i><i></i><span>app.mdflux.com.br</span></div>
-          <div class="mini-app"><aside><div class="mini-logo">M<span>↗</span></div><b></b><i></i><i></i><i></i><i></i><i></i></aside>
+          <div class="mini-app"><aside><div class="mini-logo"><img src="assets/md-flux.png" alt="MD Flux"></div><b></b><i></i><i></i><i></i><i></i><i></i></aside>
             <div class="mini-main"><div class="mini-head"><div><small>VISÃO GERAL</small><h3>Bom dia, Mariana 👋</h3></div><button>+ Nova venda</button></div>
               <div class="mini-kpis"><article><small>Saldo atual</small><strong>R$ 48.320</strong><span>↑ 12,5%</span></article><article><small>Receitas</small><strong>R$ 31.840</strong><span>↑ 8,2%</span></article><article><small>Despesas</small><strong>R$ 12.460</strong><span class="down">↓ 3,1%</span></article></div>
               <div class="mini-grid"><article class="chart"><small>Fluxo de caixa</small><div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article><article class="tasks"><small>Próximos compromissos</small><p><b>09:30</b> Reunião comercial</p><p><b>14:00</b> Atendimento Studio</p><p><b>16:30</b> Revisão financeira</p></article></div>
@@ -49,15 +49,15 @@
     <section class="plans" id="planos"><div class="section-tag">PLANOS</div><h2>Escolha o plano ideal para <em>o seu momento.</em></h2><p class="lead">Comece simples e evolua conforme sua empresa cresce.</p><div class="plans-grid" id="plans-grid"></div><p class="plans-note">Usuário adicional por R$ 9,90/mês · Cancele quando quiser</p></section>
 
     <section class="faq" id="faq"><div><div class="section-tag">DÚVIDAS FREQUENTES</div><h2>Ficou com alguma <em>dúvida?</em></h2><p>Se não encontrar sua resposta, fale diretamente com a gente.</p><button class="secondary" data-action="whatsapp">Falar pelo WhatsApp</button></div><div id="faq-list"></div></section>
-    <section class="final-cta"><div><span class="brand-symbol">M↗</span><h2>Sua empresa merece uma gestão<br><em>mais simples e inteligente.</em></h2><p>Organize seus dados, conecte seus processos e tenha a visão que precisa para crescer.</p><button class="white-btn" data-action="demo">Testar demonstração <span>→</span></button></div></section>
+    <section class="final-cta"><div><span class="brand-symbol"><img src="assets/md-flux.png" alt="MD Flux"></span><h2>Sua empresa merece uma gestão<br><em>mais simples e inteligente.</em></h2><p>Organize seus dados, conecte seus processos e tenha a visão que precisa para crescer.</p><button class="white-btn" data-action="demo">Testar demonstração <span>→</span></button></div></section>
   </main>
 
   <section id="app" class="app-shell hidden" aria-label="Demonstração do MD Flux">
-    <aside class="sidebar"><div class="app-brand"><span>M↗</span><b>MD Flux</b></div><div class="company"><i>LF</i><div><b>Loja Florescer</b><small>Plano Completo</small></div></div><nav id="app-nav"></nav><button class="exit" data-action="exit">← Voltar ao site</button></aside>
+    <aside class="sidebar"><div class="app-brand"><img src="assets/md-flux.png" alt="MD Flux"></div><div class="company"><i>LF</i><div><b>Loja Florescer</b><small>Plano Completo</small></div></div><nav id="app-nav"></nav><button class="exit" data-action="exit">← Voltar ao site</button></aside>
     <div class="app-body"><header><button class="app-menu">☰</button><div class="search">⌕ <input placeholder="Buscar no MD Flux..."><kbd>⌘ K</kbd></div><div class="profile"><button id="notif">♢<i></i></button><span>MS</span><div><b>Mariana Silva</b><small>Administradora</small></div></div></header><main id="app-content"></main></div>
   </section>
 
-  <div class="modal-wrap hidden" id="login-modal" role="dialog" aria-modal="true"><div class="modal login-card"><button class="close" data-action="close">×</button><div class="login-logo">M↗</div><div id="login-step-1"><h2>Bem-vindo ao MD Flux</h2><p>Informe as credenciais fornecidas para acessar sua empresa ou a demonstração.</p><label>E-mail ou usuário<input id="login-email" autocomplete="username" placeholder="E-mail ou usuário"></label><button class="primary full" id="continue-login">Continuar</button></div><div id="login-step-2" class="hidden"><button class="back-login">← Voltar</button><div class="tenant"><i>LF</i><div><small>AMBIENTE DE DEMONSTRAÇÃO</small><b>Loja Florescer</b></div></div><label>Senha<div class="password"><input type="password" id="password" autocomplete="current-password" placeholder="Sua senha"><button id="show-pass" aria-label="Mostrar ou ocultar senha">◉</button></div></label><a class="forgot">Esqueci minha senha</a><button class="primary full" id="submit-login">Entrar</button></div></div></div>
+  <div class="modal-wrap hidden" id="login-modal" role="dialog" aria-modal="true"><div class="modal login-card"><button class="close" data-action="close">×</button><div class="login-logo"><img src="assets/md-flux.png" alt="MD Flux — Sua gestão em um só lugar"></div><div id="login-step-1"><h2>Bem-vindo ao MD Flux</h2><p>Informe as credenciais fornecidas para acessar sua empresa ou a demonstração.</p><label>E-mail ou usuário<input id="login-email" autocomplete="username" placeholder="E-mail ou usuário"></label><button class="primary full" id="continue-login">Continuar</button></div><div id="login-step-2" class="hidden"><button class="back-login">← Voltar</button><div class="tenant"><i>LF</i><div><small>AMBIENTE DE DEMONSTRAÇÃO</small><b>Loja Florescer</b></div></div><label>Senha<div class="password"><input type="password" id="password" autocomplete="current-password" placeholder="Sua senha"><button id="show-pass" aria-label="Mostrar ou ocultar senha">◉</button></div></label><a class="forgot">Esqueci minha senha</a><button class="primary full" id="submit-login">Entrar</button></div></div></div>
   <div class="modal-wrap hidden" id="record-modal" role="dialog" aria-modal="true"><div class="modal form-card"><button class="close" data-action="close-record">×</button><h2 id="record-title">Novo registro</h2><p>Preencha os dados abaixo para continuar.</p><form id="record-form"><div class="form-grid"><label>Descrição *<input required placeholder="Digite uma descrição"></label><label>Categoria *<select required><option>Selecione</option><option>Vendas</option><option>Serviços</option><option>Fornecedores</option></select></label><label>Valor *<input required type="number" placeholder="R$ 0,00"></label><label>Data *<input required type="date"></label></div><label>Observações<textarea placeholder="Informações adicionais"></textarea></label><div class="form-actions"><button type="button" class="secondary" data-action="close-record">Cancelar</button><button class="primary">Salvar registro</button></div></form></div></div>
   <script src="app.js"></script>
 </body></html>
