@@ -43,4 +43,31 @@ document.addEventListener('click',e=>{const m=e.target.closest('[data-module]');
 $$('.faq-q').forEach(q=>q.onclick=()=>{const p=q.nextElementSibling,o=!p.classList.contains('hidden');p.classList.toggle('hidden');q.querySelector('i').textContent=o?'+':'−'});$('#continue-login').onclick=()=>{if(!$('#login-email').value.trim())return toast('Informe seu e-mail ou usuário.');$('#login-step-1').classList.add('hidden');$('#login-step-2').classList.remove('hidden');setTimeout(()=>$('#password').focus(),50)};$('.back-login').onclick=()=>{$('#login-step-2').classList.add('hidden');$('#login-step-1').classList.remove('hidden')};$('#show-pass').onclick=e=>{e.preventDefault();$('#password').type=$('#password').type==='password'?'text':'password'};$('#submit-login').onclick=signIn;$('#login-email').onkeydown=e=>{if(e.key==='Enter')$('#continue-login').click()};$('#password').onkeydown=e=>{if(e.key==='Enter')signIn()};$('#record-form').onsubmit=saveRecord;
 $('.app-menu').onclick=()=>$('#app').classList.contains('drawer-open')?closeDrawer():openDrawer();$('.sidebar-close').onclick=closeDrawer;$('.sidebar-overlay').onclick=closeDrawer;$('#notif').onclick=()=>toast('3 notificações: estoque baixo, conta vencendo e agendamento próximo.');$('#global-search').oninput=e=>state.module!=='Dashboard'&&filterRows(e.target.value);$('.menu').onclick=()=>$('.topbar').classList.toggle('nav-open');addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();$('#record-modal').classList.add('hidden')}if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();$('#global-search')?.focus()}});
 $('#continue-login').addEventListener('click',()=>{const login=$('#login-email').value.trim().toLowerCase(),demo=CONFIG.demoUsers.some(u=>u.login===login);$('.tenant i').textContent=demo?'LF':'MD';$('.tenant small').textContent=demo?'AMBIENTE DE DEMONSTRAÇÃO':'ACESSO SEGURO';$('.tenant b').textContent=demo?'Loja Florescer':'MD Flux'});
+// Mantem os pop-ups presos ao eixo vertical em navegadores touch (inclusive iOS).
+let modalTouchX=0,modalTouchY=0;
+const visibleModal=()=>document.querySelector('.modal-wrap:not(.hidden)');
+const resetModalHorizontalPosition=()=>{
+  const wrap=visibleModal();
+  if(!wrap)return;
+  wrap.scrollLeft=0;
+  const card=wrap.querySelector('.modal');
+  if(card)card.scrollLeft=0;
+  document.documentElement.scrollLeft=0;
+  document.body.scrollLeft=0;
+};
+document.addEventListener('touchstart',e=>{
+  if(!visibleModal()||e.touches.length!==1)return;
+  modalTouchX=e.touches[0].clientX;
+  modalTouchY=e.touches[0].clientY;
+  resetModalHorizontalPosition();
+},{passive:true,capture:true});
+document.addEventListener('touchmove',e=>{
+  const wrap=visibleModal();
+  if(!wrap||e.touches.length!==1)return;
+  const dx=Math.abs(e.touches[0].clientX-modalTouchX);
+  const dy=Math.abs(e.touches[0].clientY-modalTouchY);
+  if(dx>dy&&dx>4)e.preventDefault();
+  resetModalHorizontalPosition();
+},{passive:false,capture:true});
+document.addEventListener('scroll',resetModalHorizontalPosition,true);
 (async()=>{if(IS_APP_DOMAIN)openLogin();if(db){const s=await db.auth.getSession();if(s.data.session){state.mode='real';state.user=s.data.session.user;const p=await db.from('profiles').select('full_name,is_global_admin').eq('id',state.user.id).maybeSingle();state.profile=p.data;if(state.profile){const m=await db.from('company_users').select('role,company_id,companies(id,name,status)').eq('user_id',state.user.id).eq('status','active').limit(1).maybeSingle();if(m.data){state.role=m.data.role;state.company=m.data.companies}if(IS_APP_DOMAIN)enterApp()}}}})();
