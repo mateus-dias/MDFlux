@@ -10,14 +10,14 @@ Sirva a pasta `dist` com qualquer servidor HTTP estático. Exemplo:
 npx serve dist
 ```
 
-O site comercial e o ambiente demonstrativo estão prontos para navegação. A demonstração não persiste alterações e permite testar módulos, filtros, formulários e exportação CSV.
+O site comercial, o ambiente demonstrativo e o login real com Supabase Auth estão prontos para navegação. A demonstração não persiste alterações e permite testar módulos, filtros, formulários, busca e exportações CSV, XLSX, PDF e DOCX.
 
 ## Credenciais da demonstração
 
 - Usuário: `demo@mdflux.com.br` ou `demo`
 - Senha: `MDFlux@2026`
 
-Os botões “Testar grátis”, “Testar demonstração” e “Entrar” sempre abrem a tela de login. O ambiente demonstrativo só é liberado após a validação dessas credenciais. Como se trata de uma demonstração estática, elas protegem apenas o acesso ao protótipo; na produção, substitua essa validação pelo Supabase Auth.
+Os botões “Testar grátis”, “Testar demonstração” e “Entrar” sempre abrem a tela de login. As credenciais acima liberam somente a demonstração local, em modo de leitura. Contas reais são autenticadas diretamente pelo Supabase Auth e têm o acesso aos dados limitado pelas políticas RLS.
 
 Todos os CTAs comerciais usam a configuração centralizada do WhatsApp `+55 16 99775-4245`.
 
@@ -32,15 +32,22 @@ Na Netlify, adicione `app.mdflux.com.br` como alias do mesmo projeto. No DNS do 
 1. Crie ou selecione o projeto Supabase.
 2. Execute `supabase/migrations/001_initial_schema.sql` no SQL Editor.
 3. Execute `supabase/seed.sql` para cadastrar planos e módulos.
-4. Configure as variáveis usando `.env.example` como referência.
-5. Em Authentication, crie o primeiro usuário.
-6. Copie o UUID do usuário e execute:
+4. Execute `supabase/migrations/002_auth_permissions_security.sql` para ativar criação automática de perfil e autorização granular.
+5. Configure as variáveis usando `.env.example` como referência.
+6. Em Authentication, crie o primeiro usuário.
+7. Promova o e-mail administrativo:
 
 ```sql
-update public.profiles set is_global_admin = true where id = 'UUID_DO_USUARIO';
+update public.profiles p
+set is_global_admin = true
+from auth.users u
+where p.id = u.id
+  and lower(u.email) = lower('admin@mdflux.com.br');
 ```
 
-Nenhuma chave privilegiada deve ser colocada no frontend. Use `SUPABASE_SERVICE_ROLE_KEY` apenas em Edge Functions.
+O login real usa diretamente o Supabase Auth com a Publishable Key. Nenhuma chave privilegiada deve ser colocada no frontend. Use `SUPABASE_SERVICE_ROLE_KEY` apenas em Edge Functions.
+
+Se o administrador não entrar, confirme que o e-mail está confirmado em **Authentication → Users**, execute a migration `002` e depois execute o comando de promoção acima.
 
 ## Estrutura de segurança
 
