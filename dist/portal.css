@@ -44,6 +44,50 @@
 .brand-symbol img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
 html, body { max-width: 100%; overflow-x: hidden; }
+
+/*
+ * Pop-ups responsivos: o gesto no fundo e no cartao fica restrito ao eixo
+ * vertical. Assim o modal nao "balanca" para os lados em telas touch e todo
+ * o conteudo continua acessivel quando sua altura ultrapassa a viewport.
+ */
+.modal-wrap {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+.modal-wrap > .modal {
+  min-width: 0;
+  max-width: calc(100vw - 40px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+.modal-wrap > .modal form,
+.modal-wrap > .modal .form-grid,
+.modal-wrap > .modal label,
+.modal-wrap > .modal input,
+.modal-wrap > .modal select,
+.modal-wrap > .modal textarea,
+.modal-wrap > .modal .form-actions {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Use esta classe apenas dentro de um modal que realmente precise exibir
+   conteudo largo (por exemplo, uma tabela sem possibilidade de quebra). */
+.modal-wrap .modal-horizontal-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
 button, a, input, select, textarea { min-height: 40px; }
 .mini-app button, .password button, .close, .menu, .app-menu, .profile button, .data-row button { min-height: 0; }
 .sidebar nav button, .exit { min-height: 42px; font-size: 14px; }
@@ -91,7 +135,11 @@ button, a, input, select, textarea { min-height: 40px; }
   .data-row > :nth-child(3), .data-row > :nth-child(4) { text-align: right; }
   .list-row { grid-template-columns: 1fr auto; gap: 6px 12px; }
   .list-row > :nth-child(3), .list-row > :nth-child(4) { text-align: right; }
-  .form-card { width: 100%; }
+  .modal-wrap { padding: 12px; place-items: center; }
+  .modal-wrap > .modal { max-width: calc(100vw - 24px); }
+  .form-card { width: 100%; padding: 28px 20px; }
+  .form-card h2,
+  .form-card > p { overflow-wrap: anywhere; }
   .form-actions { position: sticky; bottom: -28px; background: white; padding: 14px 0 4px; }
   .form-actions button { flex: 1; }
 }
