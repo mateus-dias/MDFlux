@@ -17,6 +17,26 @@
   background: #fff; border: 1px solid #e4eaf2; border-radius: 12px;
 }
 .login-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* Mantém o conteúdo digitado visível em todos os navegadores e no autofill. */
+#login-email,
+#password {
+  color: #0a1833 !important;
+  caret-color: #075cf2;
+  -webkit-text-fill-color: #0a1833 !important;
+  opacity: 1;
+}
+#login-email::placeholder,
+#password::placeholder {
+  color: #7b8799;
+  -webkit-text-fill-color: #7b8799;
+  opacity: 1;
+}
+#login-email:-webkit-autofill,
+#password:-webkit-autofill {
+  -webkit-text-fill-color: #0a1833 !important;
+  box-shadow: 0 0 0 1000px #fff inset;
+}
 .brand-symbol {
   width: min(210px, 70%); height: 70px; padding: 8px 14px; background: #fff;
   border-radius: 13px;
