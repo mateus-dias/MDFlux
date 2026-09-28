@@ -1,6 +1,6 @@
 # MD Flux
 
-Plataforma SaaS multiempresa para gestão centralizada de financeiro, clientes, agenda, produtos, vendas, estoque, relatórios e equipe.
+Plataforma SaaS multiempresa para gestão centralizada de dashboard, financeiro, contas a pagar e receber, clientes, agenda, produtos e serviços, vendas, relatórios e exportações.
 
 ## Visualização local
 
@@ -31,8 +31,9 @@ Na Netlify, adicione `app.mdflux.com.br` como alias do mesmo projeto. No DNS do 
 
 1. Crie ou selecione o projeto Supabase.
 2. Execute `supabase/migrations/001_initial_schema.sql` no SQL Editor.
-3. Execute `supabase/seed.sql` para cadastrar planos e módulos.
+3. Execute `supabase/seed.sql` para cadastrar o plano único MD Flux (R$ 69,90/mês, até 3 usuários) e seus módulos.
 4. Execute `supabase/migrations/002_auth_permissions_security.sql` para ativar criação automática de perfil e autorização granular.
+5. Em bancos já existentes, execute também `supabase/migrations/003_single_plan_mdflux.sql`.
 5. Configure as variáveis usando `.env.example` como referência.
 6. Em Authentication, crie o primeiro usuário.
 7. Promova o e-mail administrativo:
