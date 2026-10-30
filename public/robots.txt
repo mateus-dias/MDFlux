@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /admin
+Disallow: /document
+Disallow: /demo
+Sitemap: https://mdflux.com.br/sitemap.xml

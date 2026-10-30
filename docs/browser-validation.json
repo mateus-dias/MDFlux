@@ -1,0 +1,34 @@
+[
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "checks": "landing, no overflow, demo, create, edit, search, CSV, PDF, XLSX, isolated contexts, no JS errors",
+    "passed": true
+  },
+  {
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "checks": "landing, no overflow, demo, create, edit, search, CSV, PDF, XLSX, isolated contexts, no JS errors",
+    "passed": true
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "checks": "landing, no overflow, demo, create, edit, search, CSV, PDF, XLSX, isolated contexts, no JS errors",
+    "passed": true
+  },
+  {
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "checks": "landing, no overflow, demo, create, edit, search, CSV, PDF, XLSX, isolated contexts, no JS errors",
+    "passed": true
+  }
+]

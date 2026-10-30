@@ -1,8 +1,36 @@
 {
-  "name": "mdflux",
-  "version": "1.0.0",
+  "name": "mdflux-saas",
+  "version": "2.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "node scripts/build.js"
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/*.test.mjs",
+    "test:db": "node tests/database.mjs",
+    "test:e2e": "node tests/browser.mjs",
+    "format": "prettier --write src netlify tests"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.57.4",
+    "exceljs": "4.4.0",
+    "jspdf": "4.2.1",
+    "jspdf-autotable": "5.0.9",
+    "lucide-react": "0.468.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.12",
+    "@playwright/test": "1.56.1",
+    "@types/react": "19.1.16",
+    "@types/react-dom": "19.1.9",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3",
+    "vite": "7.3.7"
+  },
+  "overrides": {
+    "uuid": "11.1.1"
   }
 }

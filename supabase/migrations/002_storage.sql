@@ -1,0 +1,4 @@
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('tenant-files','tenant-files',false,5242880,array['image/png','image/jpeg','image/webp','application/pdf']) on conflict(id) do nothing;
+create policy tenant_files_read on storage.objects for select to authenticated using(bucket_id='tenant-files' and public.is_member((storage.foldername(name))[1]::uuid) and public.entitled((storage.foldername(name))[1]::uuid));
+create policy tenant_files_insert on storage.objects for insert to authenticated with check(bucket_id='tenant-files' and public.allowed((storage.foldername(name))[1]::uuid,'order',true));
+create policy tenant_files_delete on storage.objects for delete to authenticated using(bucket_id='tenant-files' and public.is_owner((storage.foldername(name))[1]::uuid));

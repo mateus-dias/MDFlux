@@ -1,0 +1,61 @@
+[
+  {
+    "arquivo": "Mendes-System-Corrigido(2).zip",
+    "sha256": "2975518873d43e5ab9d5e96b48f713bde2c66d8da99772dbb03172f3ad84c049",
+    "entradas": 164,
+    "extensoes": {
+      ".example": 1,
+      "": 14,
+      ".md": 14,
+      ".js": 21,
+      ".css": 2,
+      ".png": 12,
+      ".webp": 6,
+      ".html": 2,
+      ".webmanifest": 2,
+      ".json": 6,
+      ".txt": 1,
+      ".toml": 2,
+      ".ts": 27,
+      ".mjs": 15,
+      ".tsx": 25,
+      ".sql": 14
+    },
+    "internos": []
+  },
+  {
+    "arquivo": "MDFlux-main(2).zip",
+    "sha256": "833751eca9c2c68a1099b292a7dff0ce0860544be7974b268962ef1dfc00912c",
+    "entradas": 36,
+    "extensoes": {
+      ".example": 1,
+      "": 1,
+      ".json": 2,
+      ".zip": 3,
+      ".md": 1,
+      ".css": 6,
+      ".js": 4,
+      ".png": 2,
+      ".html": 2,
+      ".toml": 1,
+      ".sql": 4
+    },
+    "internos": [
+      {
+        "arquivo": "MDFlux-codigo-completo-documentos-premium.zip",
+        "sha256": "dff815229d8c5e52f134380e42c5cd213111efb8a37f42d705961b2ce3aa92d3",
+        "entradas": 31
+      },
+      {
+        "arquivo": "MDFlux-codigo-completo-netlify-corrigido.zip",
+        "sha256": "a5c5c77b7b06a3939d5d11497413826ea26ee56b3e2566d4e5e02cab7bfd1c91",
+        "entradas": 31
+      },
+      {
+        "arquivo": "md-flux.zip",
+        "sha256": "f5b5fec254d36382415a0a6eb64021b2d79022877d7711574187b85ca3a0f94f",
+        "entradas": 18
+      }
+    ]
+  }
+]
