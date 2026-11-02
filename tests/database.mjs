@@ -20,6 +20,7 @@ for (const f of [
   "004_validation.sql",
   "005_member_storage.sql",
   "006_activity.sql",
+  "007_payment_ordering.sql",
 ]) {
   let sql = await fs.readFile(
     new URL("../supabase/migrations/" + f, import.meta.url),
@@ -195,6 +196,14 @@ await rejects(() =>
   ]),
 );
 check("confirmed payment is idempotent and rejects mismatched amounts");
+for (const delayed of ['pending','in_process','rejected','approved']) {
+ await db.query('select confirm_payment($1,$2,$3,$4,$5,$6,$7,$8)',params.map((v,i)=>i===4?delayed:v));
+}
+assert.equal(String((await db.query('select paid_until from subscriptions where org_id=$1',[a])).rows[0].paid_until),String(before));
+assert.equal((await db.query('select status from payments where id=$1',[payment])).rows[0].status,'approved');
+await rejects(()=>db.query('select confirm_payment($1,$2,$3,$4,$5,$6,$7,$8)',params.map((v,i)=>i===7?null:v)));
+check('out-of-order payment notifications cannot regress approval or grant access twice');
+
 await db.query(
   `update subscriptions set status='trial_expired',purge_after=now()-interval '1 day' where org_id=$1`,
   [b],
@@ -261,5 +270,17 @@ assert.equal(
 check(
   "document response binds snapshot digest and rejects duplicate acceptance",
 );
+
+for (const finalStatus of ['refunded','charged_back']) {
+ const id='terminal-'+finalStatus;
+ const args=params.map((v,i)=>i===0?id:v);
+ await db.query('select confirm_payment($1,$2,$3,$4,$5,$6,$7,$8)',args);
+ await db.query('select confirm_payment($1,$2,$3,$4,$5,$6,$7,$8)',args.map((v,i)=>i===4?finalStatus:v));
+ await db.query('select confirm_payment($1,$2,$3,$4,$5,$6,$7,$8)',args);
+ assert.equal((await db.query('select status from payments where id=$1',[id])).rows[0].status,finalStatus);
+}
+check('refunds and chargebacks cannot be resurrected by delayed approval');
+await db.exec(await fs.readFile(new URL('../supabase/migrations/007_payment_ordering.sql',import.meta.url),'utf8'));
+check('additive payment migration can be reapplied without losing data');
 console.log(`\n${passed} database checks passed.`);
 await db.close();
