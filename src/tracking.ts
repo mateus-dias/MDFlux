@@ -7,6 +7,10 @@ const allowed = [
   "StartTrial",
   "InitiateCheckout",
 ];
+function publicMeasurementPage() {
+  return location.pathname === "/" &&
+    !/[?&#](access_token|refresh_token|token_hash|code)=/i.test(location.search + location.hash);
+}
 export function track(event: string, custom: any = {}) {
   if (
     localStorage.getItem("mdflux:consent") !== "yes" ||
@@ -15,12 +19,13 @@ export function track(event: string, custom: any = {}) {
     return;
   const id = crypto.randomUUID();
   const fb = (window as any).fbq;
-  fb?.("track", event, custom, { eventID: id });
+  if (publicMeasurementPage()) fb?.("track", event, custom, { eventID: id });
   endpoint("events", { event, id, custom }).catch(() => {});
 }
 export function consent(value: boolean) {
   localStorage.setItem("mdflux:consent", value ? "yes" : "no");
   if (value) {
+    if (!publicMeasurementPage()) return;
     const pixel = (import.meta as any).env.VITE_META_PIXEL_ID;
     if (pixel && /^\d+$/.test(pixel) && !(window as any).fbq) {
       const q: any = function (...args: any[]) {
@@ -33,8 +38,10 @@ export function consent(value: boolean) {
       const s = document.createElement("script");
       s.src = "https://connect.facebook.net/en_US/fbevents.js";
       document.head.appendChild(s);
+      q("set", "autoConfig", false, pixel);
       q("init", pixel);
     }
+    (window as any).fbq?.("consent", "grant");
     track("PageView");
   } else (window as any).fbq?.("consent", "revoke");
 }
