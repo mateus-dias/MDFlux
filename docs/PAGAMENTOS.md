@@ -26,9 +26,15 @@ Na primeira versão, cancele a renovação vigente e escolha o novo plano. O per
 
 ## Retentativas e pendências
 
-Erro HTTP 4xx definitivo permite outra tentativa. Em timeout/erro ambíguo, a reserva continua `creating`: o provedor pode já ter criado a assinatura. Isso evita segunda cobrança recorrente. O suporte deve consultar `/preapproval/search` pelo `external_reference` (UUID da tentativa), reconciliar `provider_id`/`url` ou marcar falha somente após confirmar que não houve criação. A reconciliação automática dessa exceção ainda não está implementada.
+Erro HTTP 4xx definitivo permite outra tentativa. Em timeout/erro ambíguo, a reserva continua `creating`: o provedor pode já ter criado a assinatura. Uma nova tentativa busca `/preapproval/search?q=UUID` e compara a referência completa, plano, valor, moeda e recorrência antes de vincular o recurso. O parâmetro de busca `external_reference` foi ignorado pela API no teste; não o use como filtro. Os webhooks de assinatura e pagamento também recuperam reservas ainda sem `provider_id`. Atualizações condicionais preservam confirmações concorrentes. Nenhuma dessas rotinas cria outra assinatura quando a busca é inconclusiva: nesse caso a reserva permanece protegida para análise pelo suporte. Não há varredura periódica de reservas sem nova tentativa ou notificação.
 
-Eventos `payment` sem vínculo de assinatura são ignorados. O evento `subscription_authorized_payment` é a via principal para confirmar recorrência; homologue os payloads reais antes de cobrar. Os formatos não foram validados com credenciais do titular nesta entrega.
+Eventos `payment` sem vínculo de assinatura são ignorados. O evento `payment` foi exercitado com uma cobrança do vendedor de teste e o vínculo `point_of_interaction.transaction_data.subscription_id`. O tópico `subscription_authorized_payment` ainda exige validação de entrega e identificador real da fatura.
+
+## Evidência de homologação em 02/11/2026
+
+Com vendedor e comprador de teste brasileiros e cartão sintético oficial: assinatura pendente criada, assinatura autorizada por API, primeira cobrança aprovada e cancelamento confirmados no Mercado Pago. Em PostgreSQL local isolado, o handler consultou esse pagamento na API, recuperou a reserva `creating`, ativou o plano correto e recusou repetição de crédito. Uma notificação sem assinatura foi recusada; cancelamento preservou o período pago. Ambas as assinaturas de teste foram canceladas. Nenhum pagamento fictício foi inserido em produção.
+
+A assinatura HMAC desse teste foi gerada localmente; a entrega assinada pelo Mercado Pago e o checkout hospedado com comprador de teste não foram concluídos. Renovação ainda não foi observada. O estorno pela API foi recusado com HTTP 401, `Unauthorized use of live credentials`, usando a credencial do vendedor de teste; não foi contornado. Casos locais de estorno/chargeback não substituem essa homologação no provedor.
 
 ## Homologação obrigatória
 
