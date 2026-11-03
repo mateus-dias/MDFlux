@@ -8,6 +8,7 @@ import {
   mp,
   result,
 } from "../lib/core.mjs";
+import {bindRecoveredCheckout} from '../lib/checkout-recovery.mjs';
 export default wrap(async (req) => {
   if (req.method !== "POST") return result({}, 405);
   const u = new URL(req.url),
@@ -20,15 +21,15 @@ export default wrap(async (req) => {
   const d = db();
   if (b.type === "subscription_preapproval") {
     const p = await mp("/preapproval/" + encodeURIComponent(id));
-    const a = await checked(
+    let a = await checked(
       d
         .from("checkout_attempts")
         .select("*")
         .eq("id", p.external_reference)
-        .eq("provider_id", p.id)
         .maybeSingle(),
     );
     if (!a) return result({ ok: true });
+    a=await bindRecoveredCheckout(d,a,p);
     if (["cancelled", "paused"].includes(p.status))
       await checked(
         d
@@ -55,15 +56,19 @@ export default wrap(async (req) => {
     p.metadata?.preapproval_id ||
     p.point_of_interaction?.transaction_data?.subscription_id;
   if (!preapproval) return result({ ok: true, ignored: "unlinked" });
-  const a = await checked(
+  const sub = await mp("/preapproval/" + encodeURIComponent(preapproval));
+  let a = await checked(
     d
       .from("checkout_attempts")
       .select("*")
       .eq("provider_id", preapproval)
       .maybeSingle(),
   );
+  if(!a && sub.external_reference) {
+    a=await checked(d.from('checkout_attempts').select('*').eq('id',sub.external_reference).maybeSingle());
+    if(a) a=await bindRecoveredCheckout(d,a,sub);
+  }
   if (!a) return result({ ok: true });
-  const sub = await mp("/preapproval/" + encodeURIComponent(preapproval));
   if (sub.external_reference !== a.id) throw new Error("Referência inválida");
   await checked(
     d.rpc("confirm_payment", {
@@ -77,5 +82,11 @@ export default wrap(async (req) => {
       p_paid_at: p.date_approved || p.date_created,
     }),
   );
+  // A late payment notification must preserve a renewal already canceled at
+  // the provider. Keep its paid period while reflecting the current contract.
+  if(['cancelled','paused'].includes(sub.status)) {
+    await checked(d.from('subscriptions').update({status:'canceled'})
+      .eq('org_id',a.org_id).eq('provider_id',preapproval).eq('status','active'));
+  }
   return result({ ok: true });
 });
