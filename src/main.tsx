@@ -69,6 +69,12 @@ const wa =
   "https://wa.me/" +
   ((import.meta as any).env.VITE_WHATSAPP || "5516997754245");
 function go(path: string) {
+  // Leave the public document before opening authenticated or private routes.
+  // A previously loaded third-party measurement script must not survive there.
+  if ((location.pathname === "/") !== (new URL(path, location.origin).pathname === "/")) {
+    location.assign(path);
+    return;
+  }
   history.pushState({}, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
