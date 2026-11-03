@@ -9,6 +9,7 @@ import {
   env,
 } from "../lib/core.mjs";
 import { plans } from "../../src/domain.mjs";
+import {recoverReservedCheckout} from '../lib/checkout-recovery.mjs';
 export default wrap(async (req) => {
   if (req.method !== "POST") return result({}, 405);
   const b = await body(req);
@@ -39,11 +40,17 @@ export default wrap(async (req) => {
       .in("status", ["creating", "pending"])
       .maybeSingle(),
   );
+  if(old && old.plan!==b.plan) throw new Error('Existe um checkout de outro plano em andamento. Contate o suporte para cancelar essa tentativa antes de trocar.');
   if (old?.url) return result({ url: old.url });
-  if (old)
+  if (old) {
+    const recovered=await recoverReservedCheckout(d,old,mp);
+    if(recovered?.status==='pending' && recovered.url) return result({url:recovered.url});
+    if(recovered?.status==='confirmed') return result({url:env('APP_URL')+'/app/plans'});
+    if(recovered?.status==='failed') throw new Error('O checkout anterior foi cancelado. Escolha o plano novamente.');
     throw new Error(
       "Checkout em processamento. Contate o suporte se persistir.",
     );
+  }
   const attempt = await checked(
     d
       .from("checkout_attempts")
