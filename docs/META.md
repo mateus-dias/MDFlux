@@ -2,9 +2,9 @@
 
 Configure `VITE_META_PIXEL_ID` no build e, nas Functions, `META_PIXEL_ID`, `META_ACCESS_TOKEN`, `META_GRAPH_VERSION` e opcionalmente `META_TEST_EVENT_CODE`. Selecione uma versão Graph vigente e permitida na sua conta. Não exponha o token Meta no navegador.
 
-O script Pixel só é carregado depois do consentimento no banner. O rodapé permite recusar/reabrir preferências. As configurações da empresa incluem consentimento separado para medir compras confirmadas. Não são enviados senha, cartão, dados completos de clientes ou conteúdo de documentos.
+O script Pixel só é carregado na página comercial depois do consentimento no banner. A navegação para login, documentos e espaço de trabalho carrega um novo documento sem o script. O rodapé permite recusar/reabrir preferências. As configurações da empresa incluem consentimento separado para medir compras confirmadas. Não são enviados senha, cartão, dados completos de clientes ou conteúdo de documentos.
 
-Eventos de navegador preparados: PageView, Lead no CTA comercial, CompleteRegistration, StartTrial e InitiateCheckout. A função `track` também aceita ViewContent, para instrumentação futura. Cada chamada usa UUID como `eventID`; o mesmo UUID vai para a outbox CAPI, permitindo deduplicação. PageView representa o carregamento inicial consentido; mudanças de rota não são contabilizadas automaticamente como novas pageviews.
+No Pixel são enviados PageView e Lead consentidos da página comercial. CompleteRegistration, StartTrial e InitiateCheckout são enfileirados apenas para a CAPI, sem carregar o Pixel nessas telas. A função `track` também aceita ViewContent, para instrumentação futura. Cada chamada usa UUID como `eventID`; quando houver eventos nas duas integrações, o mesmo UUID permite deduplicação. PageView representa o carregamento inicial consentido da página comercial.
 
 Purchase é criado somente pelo banco quando um pagamento aprovado e conferido ativa/renova a assinatura. Valor, BRL e plano são definidos pelo servidor. O ID estável `purchase:ID_PAGAMENTO` evita duplicação. Não há Purchase no retorno do checkout nem em pagamento pendente. Compra é enviada somente por CAPI; não há duplicata de Pixel dessa compra. Subscribe não é enviado nesta versão.
 
