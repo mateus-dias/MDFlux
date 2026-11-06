@@ -1917,3 +1917,22 @@ input[type="file"] {
     font-size: 22px;
   }
 }
+
+.customer-card {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border: 1px solid #dce5f2;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.customer-card p {
+  line-height: 1.7;
+}
+.customer-card a {
+  color: #175cd3;
+  text-decoration: underline;
+}
+.customer-card summary {
+  cursor: pointer;
+  padding: 0.5rem 0;
+}

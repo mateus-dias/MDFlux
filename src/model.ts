@@ -29,6 +29,7 @@ export type Org = {
   settings: Record<string, any>;
   role: string;
   subscription: {
+    exempt?: boolean;
     plan: "essencial" | "profissional" | "empresarial";
     status: string;
     trial_end: string;

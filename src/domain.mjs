@@ -18,6 +18,7 @@ export function total(items, discount = 0) {
   );
 }
 export function access(s, now = Date.now()) {
+  if (s.exempt === true) return true;
   return (
     !s.suspended &&
     ((s.status === "trialing" && Date.parse(s.trial_end) > now) ||

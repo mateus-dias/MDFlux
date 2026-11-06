@@ -1,4 +1,5 @@
 import Captcha, { captchaKey } from "./Captcha";
+import AdminCustomers from "./AdminCustomers";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -71,7 +72,10 @@ const wa =
 function go(path: string) {
   // Leave the public document before opening authenticated or private routes.
   // A previously loaded third-party measurement script must not survive there.
-  if ((location.pathname === "/") !== (new URL(path, location.origin).pathname === "/")) {
+  if (
+    (location.pathname === "/") !==
+    (new URL(path, location.origin).pathname === "/")
+  ) {
     location.assign(path);
     return;
   }
@@ -494,6 +498,9 @@ function Auth() {
                     data: {
                       first_name: f.get("first_name"),
                       last_name: f.get("last_name"),
+                      contact_phone: String(
+                        f.get("contact_phone") || "",
+                      ).trim(),
                     },
                   },
                 });
@@ -537,6 +544,23 @@ function Auth() {
             <label>
               E-mail
               <input name="email" type="email" required autoComplete="email" />
+            </label>
+          )}
+          {signup && !recovery && !reset && (
+            <label>
+              Telefone / WhatsApp de contato (opcional)
+              <input
+                name="contact_phone"
+                type="tel"
+                autoComplete="tel"
+                maxLength={25}
+                pattern="[+0-9 ()-]{10,25}"
+                placeholder="(11) 99999-9999"
+              />
+              <small>
+                Usaremos este número apenas para contato sobre o MD Flux,
+                suporte e assinatura.
+              </small>
             </label>
           )}
           {!recovery && (
@@ -1448,14 +1472,23 @@ function Admin() {
               ["Empresas", data.orgs.length],
               [
                 "Assinaturas ativas",
-                data.subscriptions.filter((s: any) => s.status === "active")
-                  .length,
+                data.subscriptions.filter(
+                  (s: any) =>
+                    !data.exempt_org_ids.includes(s.org_id) &&
+                    access(s, Date.parse(data.server_now)) &&
+                    s.status !== "trialing",
+                ).length,
               ],
               [
-                "MRR contratado",
+                "Mensalidade dos acessos vigentes",
                 money(
                   data.subscriptions
-                    .filter((s: any) => s.status === "active")
+                    .filter(
+                      (s: any) =>
+                        !data.exempt_org_ids.includes(s.org_id) &&
+                        s.status === "active" &&
+                        access(s, Date.parse(data.server_now)),
+                    )
                     .reduce(
                       (n: number, s: any) =>
                         n + plans[s.plan as keyof typeof plans].price,
@@ -1478,6 +1511,7 @@ function Admin() {
               </article>
             ))}
           </div>
+          <AdminCustomers data={data} />
           <section className="panel">
             <h3>Usuários e atividade aproximada</h3>
             <input
@@ -1531,8 +1565,8 @@ function Admin() {
                 );
               })}
             <p className="hint">
-              Até 1.000 usuários nesta consulta. Presença e tempo são
-              estimativas; ausência de sinal não comprova logout.
+              Presença e tempo são estimativas; ausência de sinal não comprova
+              logout.
             </p>
             <h3>Empresas e assinaturas</h3>
             {data.orgs.map((o: any) => {
@@ -1688,7 +1722,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
       if (!current)
         throw new Error("Nenhuma empresa disponível para esta conta.");
       setOrg(current);
-      setAdmin(c.admin);
+      setAdmin(c.admin || c.platform_owner);
       setRows(await loadRows(current.id));
       setError("");
     } catch (e) {
@@ -2635,7 +2669,9 @@ function Legal({ terms }: { terms: boolean }) {
             Tratamos nome, e-mail, associação à empresa, cadastros comerciais,
             documentos, dados financeiros e registros mínimos de segurança para
             prestar o serviço. Senhas são gerenciadas pelo Supabase Auth. Dados
-            completos de cartão e CVV não são armazenados pelo MD Flux.
+            completos de cartão e CVV não são armazenados pelo MD Flux. O
+            telefone informado opcionalmente no cadastro é usado para contato
+            sobre o MD Flux, suporte e assinatura, inclusive por WhatsApp.
           </p>
           <h2>Provedores e medição</h2>
           <p>
