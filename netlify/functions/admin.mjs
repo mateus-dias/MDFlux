@@ -1,5 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 import { wrap, identity, checked, body, result, env } from "../lib/core.mjs";
+async function allRows(d, table, columns = "*") {
+  const rows = [];
+  for (let offset = 0; ; offset += 1000) {
+    const key =
+      table === "subscriptions"
+        ? "org_id"
+        : ["memberships", "user_activity"].includes(table)
+          ? "user_id"
+          : "id";
+    let query = d.from(table).select(columns).order(key);
+    if (table === "memberships") query = query.order("org_id");
+    const page = await checked(query.range(offset, offset + 999));
+    rows.push(...page);
+    if (page.length < 1000) return rows;
+  }
+}
 export default wrap(async (req) => {
   const { d, user, token } = await identity(req);
   const scoped = createClient(env("SUPABASE_URL"), env("SUPABASE_ANON_KEY"), {
@@ -8,12 +24,12 @@ export default wrap(async (req) => {
   });
   if (!(await checked(scoped.rpc("is_global_admin")))) throw new Error("403");
   if (req.method === "GET") {
-    const orgs = await checked(
-      d.from("organizations").select("id,name,created_at"),
-    );
-    const subscriptions = await checked(d.from("subscriptions").select("*"));
-    const payments = await checked(
-      d.from("payments").select("amount,status,created_at"),
+    const orgs = await allRows(d, "organizations", "id,name,created_at");
+    const subscriptions = await allRows(d, "subscriptions");
+    const payments = await allRows(
+      d,
+      "payments",
+      "id,org_id,amount,status,created_at,paid_at",
     );
     const audit = await checked(
       d
@@ -25,22 +41,40 @@ export default wrap(async (req) => {
     const tickets = await checked(
       d.from("records").select("*").eq("kind", "ticket").eq("archived", false),
     );
-    const activity = await checked(d.from("user_activity").select("*"));
-    const { data: usersPage, error: usersError } = await d.auth.admin.listUsers(
-      { page: 1, perPage: 1000 },
-    );
-    if (usersError) throw usersError;
-    const users = usersPage.users.map((u) => ({
+    const activity = await allRows(d, "user_activity");
+    const authUsers = [];
+    for (let page = 1; ; page++) {
+      const { data, error } = await d.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      });
+      if (error) throw error;
+      authUsers.push(...data.users);
+      if (data.users.length < 1000) break;
+    }
+    const users = authUsers.map((u) => ({
       id: u.id,
       email: u.email,
       first_name: u.user_metadata.first_name,
       last_name: u.user_metadata.last_name,
+      contact_phone: String(u.user_metadata.contact_phone || "").slice(0, 25),
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at,
       banned_until: u.banned_until,
     }));
-    const memberships = await checked(d.from("memberships").select("*"));
+    const memberships = await allRows(d, "memberships");
+    const owners = await checked(d.from("platform_owner").select("user_id"));
+    const exempt_org_ids = memberships
+      .filter(
+        (m) =>
+          m.role === "owner" &&
+          m.active &&
+          owners.some((o) => o.user_id === m.user_id),
+      )
+      .map((m) => m.org_id);
     return result({
+      server_now: new Date().toISOString(),
+      exempt_org_ids,
       orgs,
       subscriptions,
       payments,
