@@ -46,7 +46,7 @@ import {
 import { money, plans, summarize, access, today } from "./domain.mjs";
 import { modules, labels, documentKinds, canWrite } from "./model";
 import type { Kind, Row, Org } from "./model";
-import { exportCSV, exportXLSX, pdf } from "./exports";
+import { companyLogo, exportCSV, exportXLSX, pdf, prepareCompanyLogo } from "./exports";
 import { track, consent } from "./tracking";
 import Editor from "./Editor";
 import "./styles.css";
@@ -82,7 +82,7 @@ function go(path: string) {
   history.pushState({}, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
-function Logo() {
+function Logo({ image, name = "MD Flux" }: { image?: string; name?: string } = {}) {
   return (
     <a
       className="logo"
@@ -92,7 +92,7 @@ function Logo() {
         go("/");
       }}
     >
-      <img src="/brand/md-flux.png" alt="MD Flux" />
+      <img src={image || "/brand/md-flux.png"} alt={image ? name : "MD Flux"} style={image ? { objectFit: "contain", width: 140, height: 44, background: "#fff", borderRadius: 4 } : undefined} />
       <span>
         MD <b>Flux</b>
       </span>
@@ -1143,6 +1143,10 @@ function SettingsPage({
   const [members, setMembers] = useState<any[]>([]),
     [audit, setAudit] = useState<any[]>([]),
     [factor, setFactor] = useState<any>(null);
+  const [logoDraft, setLogoDraft] = useState<string | null>();
+  const [preparingLogo, setPreparingLogo] = useState(false);
+  const [savingCompany, setSavingCompany] = useState(false);
+  const currentLogo = logoDraft === undefined ? companyLogo(org.settings.logo) : logoDraft;
   useEffect(() => {
     if (!demo && supabase) {
       supabase
@@ -1189,18 +1193,29 @@ function SettingsPage({
                   throw new Error(
                     "Dados da empresa são somente leitura na demonstração.",
                   );
-                await rpc("update_settings", {
-                  p_org: org.id,
-                  p_name: f.get("name"),
-                  p_settings: {
-                    ...org.settings,
-                    contact: f.get("contact"),
-                    address: f.get("address"),
-                    hide_orders: f.get("hide_orders") === "on",
-                    marketing_consent: f.get("marketing") === "on",
-                    document_terms: f.get("terms"),
-                  },
-                });
+                if (org.role !== "owner" || preparingLogo || savingCompany) return;
+                const settings = {
+                  ...org.settings,
+                  contact: f.get("contact"),
+                  address: f.get("address"),
+                  hide_orders: f.get("hide_orders") === "on",
+                  marketing_consent: f.get("marketing") === "on",
+                  document_terms: f.get("terms"),
+                  logo: currentLogo || null,
+                };
+                if (JSON.stringify(settings).length > 19500) {
+                  throw new Error("As preferências excedem o limite. Reduza o texto das condições comerciais ou troque o logotipo.");
+                }
+                setSavingCompany(true);
+                try {
+                  await rpc("update_settings", {
+                    p_org: org.id,
+                    p_name: f.get("name"),
+                    p_settings: settings,
+                  });
+                } finally {
+                  setSavingCompany(false);
+                }
               });
             }}
           >
@@ -1216,6 +1231,36 @@ function SettingsPage({
               Endereço
               <input name="address" defaultValue={org.settings.address || ""} />
             </label>
+            <fieldset disabled={demo || org.role !== "owner" || preparingLogo || savingCompany}>
+              <legend>Logotipo da empresa</legend>
+              {currentLogo && (
+                <img src={currentLogo} alt="Prévia do logotipo" style={{ maxWidth: 180, maxHeight: 80, objectFit: "contain", background: "#fff" }} />
+              )}
+              <label>
+                Selecionar logotipo
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={async (event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (!file) return;
+                    setPreparingLogo(true);
+                    try {
+                      setLogoDraft(await prepareCompanyLogo(file));
+                    } catch (error) {
+                      notify(error instanceof Error ? error.message : "Não foi possível ler a imagem.");
+                    } finally {
+                      setPreparingLogo(false);
+                    }
+                  }}
+                />
+              </label>
+              <p className="hint">
+                PNG, JPG ou WebP de até 5 MB. Salve as preferências para aplicar o logotipo ao sistema e aos documentos.
+              </p>
+              {currentLogo && <button type="button" onClick={() => setLogoDraft(null)}>Remover logotipo</button>}
+            </fieldset>
             <label>
               Modelo de condições comerciais
               <textarea
@@ -1240,8 +1285,8 @@ function SettingsPage({
               />{" "}
               Permitir medição de conversões de assinatura
             </label>
-            <button className="primary" disabled={org.role !== "owner"}>
-              Salvar preferências
+            <button className="primary" disabled={demo || org.role !== "owner" || preparingLogo || savingCompany}>
+              {preparingLogo ? "Preparando imagem..." : savingCompany ? "Salvando..." : "Salvar preferências"}
             </button>
           </form>
         </section>
@@ -1930,7 +1975,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
   return (
     <div className="app-shell">
       <aside className={"sidebar " + (nav ? "shown" : "")}>
-        <Logo />
+        <Logo image={companyLogo(org.settings.logo)} name={org.name} />
         <button className="company-switch" onClick={() => navigate("settings")}>
           <span className="company-avatar">{org.name[0]}</span>
           <span>
@@ -2206,6 +2251,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
             </>
           ) : page === "settings" ? (
             <SettingsPage
+              key={org.id}
               org={org}
               rows={rows}
               demo={demo}
@@ -2547,7 +2593,7 @@ function PublicDocument() {
   }, [token, done]);
   return (
     <main className="public-document">
-      <Logo />
+      <Logo image={companyLogo(data?.snapshot.company.logo)} name={data?.snapshot.company.name} />
       {error && <p className="error">{error}</p>}
       {data && (
         <section className="panel">
