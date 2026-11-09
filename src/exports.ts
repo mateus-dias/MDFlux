@@ -64,6 +64,48 @@ export async function exportXLSX(rows: Row[]) {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   );
 }
+export function companyLogo(value: unknown): string | undefined {
+  return typeof value === "string" &&
+    value.length <= 12000 &&
+    /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(value)
+    ? value
+    : undefined;
+}
+
+export async function prepareCompanyLogo(file: File): Promise<string> {
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+      file.size === 0 || file.size > 5 * 1024 * 1024) {
+    throw new Error("Selecione uma imagem PNG, JPG ou WebP de até 5 MB.");
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (!context || !image.naturalWidth || !image.naturalHeight) {
+      throw new Error("Não foi possível processar a imagem.");
+    }
+
+    for (const maxEdge of [400, 320, 240, 160, 100]) {
+      const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      for (const quality of [0.88, 0.73, 0.58]) {
+        const logo = companyLogo(canvas.toDataURL("image/jpeg", quality));
+        if (logo) return logo;
+      }
+    }
+    throw new Error("Não foi possível compactar o logotipo. Tente uma imagem mais simples.");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export async function pdf(rows: Row[], org: Org, documentMode = false) {
   const { jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
@@ -71,10 +113,30 @@ export async function pdf(rows: Row[], org: Org, documentMode = false) {
   doc.setFillColor(23, 98, 232);
   doc.rect(0, 0, 210, 32, "F");
   doc.setTextColor(255);
-  doc.setFontSize(22);
-  doc.text("MD Flux", 14, 17);
-  doc.setFontSize(10);
-  doc.text(org.name.slice(0, 70), 14, 25);
+  const logo = companyLogo(org.settings?.logo);
+  let nameX = 14;
+  if (logo) {
+    try {
+      const image = doc.getImageProperties(logo);
+      const scale = Math.min(44 / image.width, 21 / image.height);
+      const width = image.width * scale;
+      const height = image.height * scale;
+      doc.addImage(logo, "JPEG", 14, (32 - height) / 2, width, height);
+      nameX += width + 7;
+    } catch {
+      // An unreadable image must not prevent document issuance.
+    }
+  }
+  if (nameX > 14) {
+    doc.setFontSize(14);
+    const lines = doc.splitTextToSize(org.name, 196 - nameX).slice(0, 2);
+    doc.text(lines, nameX, lines.length > 1 ? 14 : 18);
+  } else {
+    doc.setFontSize(22);
+    doc.text("MD Flux", 14, 17);
+    doc.setFontSize(10);
+    doc.text(org.name.slice(0, 70), 14, 25);
+  }
   doc.setTextColor(25, 40, 65);
   let y = 45;
   if (documentMode) {
@@ -138,10 +200,10 @@ export async function pdf(rows: Row[], org: Org, documentMode = false) {
     });
   for (let i = 1; i <= doc.getNumberOfPages(); i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(100);
     doc.text(
-      `MD Flux · Gerado em ${new Date().toLocaleString("pt-BR")} · Página ${i}`,
+      `Emitido pelo MD Flux · Gerado em ${new Date().toLocaleString("pt-BR")} · Página ${i}`,
       14,
       290,
     );
