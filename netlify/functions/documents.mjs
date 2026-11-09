@@ -115,6 +115,11 @@ export default wrap(async (req) => {
       name: org.name,
       contact: org.settings.contact,
       address: org.settings.address,
+      ...(typeof org.settings.logo === "string" &&
+      org.settings.logo.length <= 12000 &&
+      /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(org.settings.logo)
+        ? { logo: org.settings.logo }
+        : {}),
     },
     client: c ? { name: c.name } : null,
   };
