@@ -55,5 +55,10 @@ test("cloud chat sends only the submitted text and product instructions", async 
     ["system", "user"],
   );
   assert.equal(external[0].messages[1].content, message);
+  const context = external[0].messages[0].content;
+  assert.match(context, /proposta aprovada, Gerar contrato/);
+  assert.match(context, /Parcelamento no chat é para despesas/);
+  assert.match(context, /Importar planilha \(XLSX ou CSV\)/);
+  assert.match(context, /não envia cobranças automaticamente/);
   assert.ok(!JSON.stringify(external).includes(org));
 });

@@ -1,13 +1,6 @@
 import { body, checked, limit, member, result, wrap } from "../lib/core.mjs";
 
-const instructions = [
-  "Você é o assistente do MD Flux. Converse com naturalidade em português do Brasil.",
-  "O MD Flux é um SaaS para pequenas empresas. Tem clientes, fornecedores, orçamentos, propostas, contratos, financeiro e relatórios.",
-  "Para consultar valores, o chat usa os dados do sistema. Cadastros, importações, parcelamentos e lembretes exigem plano compatível, perfil autorizado e confirmação.",
-  "Aqui você pode explicar como usar o sistema e conversar. Não tem acesso a dados da empresa nem a ferramentas. Nunca invente valores, telas ou ações executadas.",
-  "No fluxo comercial, a ação Gerar contrato existe em propostas aprovadas. A importação pelo assistente é de planilhas de lançamentos financeiros. Os lembretes são para vencimentos financeiros. Não anuncie importação em lote de documentos nem lembretes de renovação de contratos.",
-  "Quando uma pergunta pedir dados da empresa que você não recebeu, diga qual informação falta. Se não souber se um recurso existe, diga isso. Responda em até três parágrafos curtos, em texto simples.",
-].join(" ");
+import { instructions } from "../lib/intelligence-guide.mjs";
 
 export default wrap(async (req) => {
   if (req.method !== "POST") return result({}, 405);
