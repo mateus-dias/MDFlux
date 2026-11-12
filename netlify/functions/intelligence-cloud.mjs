@@ -47,7 +47,7 @@ export default wrap(async (req) => {
         },
         signal: AbortSignal.timeout(15000),
         body: JSON.stringify({
-          model: "@cf/google/gemma-4-26b-a4b-it",
+          model: "@cf/meta/llama-3.1-8b-instruct",
           messages: [
             { role: "system", content: instructions },
             { role: "user", content: message.trim() },
