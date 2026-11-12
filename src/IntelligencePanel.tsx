@@ -209,10 +209,12 @@ export function Intelligence({
                 add("Assistente", response.reply);
                 return;
               }
-            } catch {
+            } catch (error) {
               add(
                 "Assistente",
-                "A IA em nuvem está indisponível neste momento.",
+                error instanceof Error
+                  ? error.message
+                  : "A IA em nuvem está indisponível neste momento.",
               );
             }
           }
@@ -507,7 +509,7 @@ export function Intelligence({
                         ? "Interpretação local ativada para consultas."
                         : "IA local indisponível neste navegador. Os comandos continuam disponíveis.",
                     );
-                  } catch {
+                  } catch (error) {
                     add(
                       "Assistente",
                       "Não foi possível carregar o modelo local. Use os comandos ou sugestões.",

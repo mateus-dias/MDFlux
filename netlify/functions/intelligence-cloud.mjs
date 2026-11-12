@@ -17,7 +17,10 @@ export default wrap(async (req) => {
     !/^[a-f0-9]{32}$/i.test(account || "") ||
     !token
   )
-    return result({ error: "IA em nuvem indisponível." }, 503);
+    return result(
+      { error: "IA em nuvem ainda não configurada no servidor." },
+      503,
+    );
   const { org, message } = await body(req);
   if (
     typeof org !== "string" ||
@@ -42,7 +45,7 @@ export default wrap(async (req) => {
           Authorization: "Bearer " + token,
           "Content-Type": "application/json",
         },
-        signal: AbortSignal.timeout(6500),
+        signal: AbortSignal.timeout(15000),
         body: JSON.stringify({
           model: "@cf/google/gemma-4-26b-a4b-it",
           messages: [
@@ -54,16 +57,29 @@ export default wrap(async (req) => {
         }),
       },
     );
-    if (!response.ok)
+    if (!response.ok) {
+      const failure = await response.json().catch(() => null);
+      console.warn(
+        "Workers AI request rejected",
+        response.status,
+        failure?.errors?.[0]?.code,
+      );
       return result(
-        { error: "IA em nuvem temporariamente indisponível." },
+        {
+          error:
+            "A Cloudflare não respondeu à solicitação (" +
+            response.status +
+            ").",
+        },
         503,
       );
+    }
     const content = (await response.json()).choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim())
       return result({ error: "IA em nuvem sem resposta." }, 503);
     return result({ reply: content.trim().slice(0, 1200) });
-  } catch {
+  } catch (error) {
+    console.warn("Workers AI request failed", error?.name);
     return result({ error: "IA em nuvem temporariamente indisponível." }, 503);
   }
 });
