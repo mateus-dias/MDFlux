@@ -6,6 +6,7 @@ import { rpc } from "./api";
 import { money } from "./domain.mjs";
 import {
   installments,
+  interpretFinance,
   localDate,
   normalize,
   parseAmount,
@@ -35,6 +36,9 @@ export function Intelligence({
   records: Row[];
 }) {
   const [local, setLocal] = useState(false);
+  const lastQuery = useRef<{ intent: string; period: string } | undefined>(
+    undefined,
+  );
   const historyRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -90,16 +94,7 @@ export function Intelligence({
     setText("");
     setBusy(true);
     try {
-      let command = normalize(value);
-      if (
-        local &&
-        !/receber|pagar|venc|alerta|resultado|lucro|caixa|analise|despesas|relatorio|cadastre|crie|registre|cobranca|lembre/.test(
-          command,
-        )
-      ) {
-        const interpreted = await classifyLocally(value);
-        if (interpreted) command = normalize(interpreted);
-      }
+      const command = normalize(value);
       const registration =
         /^(?:cadastre|crie|registre)\s+(?:um[a]?\s+)?(cliente|fornecedor|servi[cç]o)\s+(?:chamad[oa]\s+)?(.+)$/i.exec(
           value,
@@ -176,13 +171,30 @@ export function Intelligence({
           throw new Error("Informe um nome de até 200 caracteres.");
         setPreview({ id: crypto.randomUUID(), rows });
         add("Assistente", "Confira a prévia e confirme para gravar.");
-      } else if (
-        /receber|pagar|venc|alerta|resultado|lucro|caixa|analise|despesas|relatorio/.test(
-          command,
-        )
-      ) {
-        const detailed =
-          /resultado|lucro|caixa|analise|despesas|relatorio/.test(command);
+      } else {
+        let query = interpretFinance(value, lastQuery.current);
+        if (!query && local) {
+          const intent = await classifyLocally(value);
+          if (intent) query = { intent, period: "default" };
+        }
+        if (query?.unsupported) {
+          add(
+            "Assistente",
+            "Ainda não consigo consultar esse recorte. Posso mostrar as contas em aberto, os vencimentos dos próximos sete dias ou o caixa deste mês e do mês anterior.",
+          );
+          return;
+        }
+        if (!query?.intent) {
+          add(
+            "Assistente",
+            "O que você quer consultar: valores a receber, a pagar, contas vencidas ou resultado de caixa?",
+          );
+          return;
+        }
+        const { intent, period = "default" } = query;
+        const detailed = ["cash", "received", "paid", "expenses"].includes(
+          intent,
+        );
         if (detailed && !advanced)
           throw new Error(
             "Análises financeiras estão disponíveis nos planos Profissional e Empresarial.",
@@ -192,71 +204,90 @@ export function Intelligence({
           p_advanced: detailed,
         });
         setReport(data);
-        if (detailed) {
-          const current = Number(data.received) - Number(data.paid);
-          const previous =
-            Number(data.previous_received) - Number(data.previous_paid);
-          const projection =
-            Number(data.recorded_cash) +
-            Number(data.receivable) -
-            Number(data.payable);
-          add(
-            "Assistente",
-            [
-              "Resultado de caixa deste mês até " +
-                data.as_of +
-                ": " +
-                money(current) +
-                ".",
-              "Recebido: " +
-                money(data.received) +
-                ". Pago: " +
-                money(data.paid) +
-                ".",
-              "Mês anterior completo: " +
-                money(previous) +
-                " de resultado. Recebido: " +
-                money(data.previous_received) +
-                ". Pago: " +
-                money(data.previous_paid) +
-                ".",
-              "Caixa registrado mais valores em aberto: " +
-                money(projection) +
-                ". Esse cenário supõe que todas as contas em aberto serão liquidadas.",
-              ...data.categories.map(
-                (row: { category: string; paid: number }) =>
-                  row.category + ": " + money(row.paid),
-              ),
-              "Os dados de caixa não determinam lucro contábil.",
-            ].join("\n"),
-          );
-        } else {
-          add(
-            "Assistente",
-            [
-              "A receber com vencimento neste mês: " +
+        lastQuery.current = { intent, period };
+        const previous = period === "previous";
+        const periodLabel = previous
+          ? "No mês anterior"
+          : "Neste mês até " + data.as_of;
+        const received = Number(
+          previous ? data.previous_received : data.received,
+        );
+        const paid = Number(previous ? data.previous_paid : data.paid);
+        const answers: Record<string, () => string> = {
+          balances: () =>
+            "Em aberto: " +
+            money(data.receivable) +
+            " a receber e " +
+            money(data.payable) +
+            " a pagar.",
+          receivables: () =>
+            period === "month"
+              ? "A receber com vencimento neste mês: " +
+                money(data.receivable_month) +
+                "."
+              : "Você tem " +
+                money(data.receivable) +
+                " a receber, dos quais " +
+                money(data.overdue_income) +
+                " estão vencidos. Com vencimento neste mês: " +
                 money(data.receivable_month) +
                 ".",
-              "Em aberto: " +
-                money(data.receivable) +
-                " a receber e " +
-                money(data.payable) +
-                " a pagar.",
-              "Vencidos: " +
-                money(data.overdue_income) +
-                " a receber e " +
-                money(data.overdue_expense) +
-                " a pagar.",
-              data.due_soon +
-                " lançamento(s) em aberto com vencimento nos próximos sete dias.",
+          payables: () =>
+            "Você tem " +
+            money(data.payable) +
+            " a pagar, dos quais " +
+            money(data.overdue_expense) +
+            " estão vencidos.",
+          overdue: () =>
+            "Valores vencidos: " +
+            money(data.overdue_income) +
+            " a receber e " +
+            money(data.overdue_expense) +
+            " a pagar.",
+          upcoming: () =>
+            data.due_soon +
+            " lançamento(s) em aberto com vencimento de hoje até sete dias à frente.",
+          received: () =>
+            periodLabel + ", você recebeu " + money(received) + ".",
+          paid: () => periodLabel + ", você pagou " + money(paid) + ".",
+          expenses: () =>
+            [
+              periodLabel + ", você pagou " + money(paid) + ".",
+              ...(data.categories.length
+                ? data.categories.map(
+                    (row: { category: string; paid: number }) =>
+                      row.category + ": " + money(row.paid),
+                  )
+                : ["Nenhuma despesa paga por categoria nesse período."]),
             ].join("\n"),
-          );
-        }
-      } else {
-        add(
-          "Assistente",
-          "Você pode perguntar quanto tem a receber, pedir uma análise de caixa ou usar um dos exemplos acima.",
-        );
+          cash: () =>
+            [
+              periodLabel +
+                ", o resultado de caixa foi " +
+                money(received - paid) +
+                ".",
+              "Recebido: " + money(received) + ". Pago: " + money(paid) + ".",
+              ...(!previous
+                ? [
+                    "Mês anterior completo: " +
+                      money(
+                        Number(data.previous_received) -
+                          Number(data.previous_paid),
+                      ) +
+                      " de resultado.",
+                    "Caixa registrado mais valores em aberto: " +
+                      money(
+                        Number(data.recorded_cash) +
+                          Number(data.receivable) -
+                          Number(data.payable),
+                      ) +
+                      ". Esse cenário supõe que todas as contas em aberto serão liquidadas.",
+                  ]
+                : []),
+              "O resultado de caixa considera as baixas. Lucro contábil exige outros dados.",
+            ].join("\n"),
+        };
+        add("Assistente", answers[intent]());
       }
     } catch (error) {
       add(

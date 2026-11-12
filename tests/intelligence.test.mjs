@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installments, parseAmount, parseDue } from "../src/intelligence.mjs";
+import {
+  installments,
+  interpretFinance,
+  parseAmount,
+  parseDue,
+} from "../src/intelligence.mjs";
 import { readFinancialFile } from "../src/intelligence-import.mjs";
 
 test("Brazilian amounts and impossible dates are validated", () => {
@@ -40,4 +45,29 @@ test("CSV import keeps quoted labels and surfaces duplicates and invalid rows", 
     },
   ]);
   assert.equal(result.issues.length, 2);
+});
+
+test("financial questions support paraphrases, follow-ups and bounded periods", () => {
+  assert.deepEqual(interpretFinance("Quanto ainda falta entrar?"), {
+    intent: "receivables",
+    period: "default",
+  });
+  assert.deepEqual(interpretFinance("Quanto tenho pra pagar?"), {
+    intent: "payables",
+    period: "default",
+  });
+  const last = interpretFinance("Quanto eu gastei nesse mês?");
+  assert.deepEqual(last, { intent: "paid", period: "month" });
+  assert.deepEqual(interpretFinance("E no mês passado?", last), {
+    intent: "paid",
+    period: "previous",
+  });
+  assert.deepEqual(interpretFinance("Quanto recebi ontem?"), {
+    unsupported: true,
+  });
+  assert.equal(
+    interpretFinance("Quanto o cliente João tem a pagar?"),
+    undefined,
+  );
+  assert.equal(interpretFinance("Não quero que mostre o caixa"), undefined);
 });

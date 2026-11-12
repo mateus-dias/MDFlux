@@ -72,3 +72,112 @@ export function installments(name, cents, count, due) {
     };
   });
 }
+
+export const financeIntents = [
+  "balances",
+  "receivables",
+  "payables",
+  "overdue",
+  "upcoming",
+  "cash",
+  "received",
+  "paid",
+  "expenses",
+];
+
+export function interpretFinance(text, previous) {
+  const question = normalize(text).replace(/\bpra\b/g, "para");
+  if (
+    /\b(nao|nunca)\s+(?:quero|preciso|mostre|prepare|cadastre|crie|registre)\b/.test(
+      question,
+    )
+  )
+    return undefined;
+  if (
+    /\b(?:clientes?|fornecedores?|nota fiscal|estoque|imposto|vendas|faturamento)\b/.test(
+      question,
+    )
+  )
+    return undefined;
+  const lastMonth = /\bmes (?:passado|anterior)\b/.test(question);
+  const currentMonth =
+    /\b(?:neste mes|nesse mes|deste mes|do mes|mes atual)\b/.test(question);
+  if (
+    /\b(?:ontem|amanha|ano passado|ano atual|semestre|trimestre|mes que vem|proximo mes|entre \d+|em \d{4})\b|\b\d{1,2}\/\d{1,2}\b/.test(
+      question,
+    )
+  )
+    return { unsupported: true };
+  const followUp =
+    /^\s*(?:e\s+)?(?:(?:no|do|neste|nesse|deste)\s+)?mes (?:passado|anterior|atual)\W*$/.test(
+      question,
+    );
+  let intent;
+  if (followUp) intent = previous?.intent;
+  else if (
+    /\b(?:atrasad[oa]s?|vencid[oa]s?|em atraso|inadimplencia)\b/.test(question)
+  )
+    intent = "overdue";
+  else if (
+    /\b(?:a vencer|vencem|vencimento[s]?|proxim[oa]s? (?:contas|dias|vencimentos))\b/.test(
+      question,
+    )
+  )
+    intent = "upcoming";
+  else if (
+    /\b(?:quanto (?:eu )?(?:gastei|paguei)|saiu|ja paguei|total pago|pagamentos realizados)\b/.test(
+      question,
+    )
+  )
+    intent = "paid";
+  else if (
+    /\b(?:recebi|ja entrou|quanto entrou|recebido|recebimentos realizados)\b/.test(
+      question,
+    )
+  )
+    intent = "received";
+  else if (
+    /\b(?:quanto devo|quanto (?:falta|preciso) pagar|(?:a|para) pagar|dividas|boletos em aberto|tenho que pagar)\b/.test(
+      question,
+    )
+  )
+    intent = "payables";
+  else if (
+    /\b(?:receber|vao me pagar|me devem|falta entrar|dinheiro para entrar|recebiveis)\b/.test(
+      question,
+    )
+  )
+    intent = "receivables";
+  else if (
+    /\b(?:categorias|maiores gastos|onde (?:mais )?gastei|com que gastei|despesas por|analise (?:as|minhas) despesas)\b/.test(
+      question,
+    )
+  )
+    intent = "expenses";
+  else if (
+    /\b(?:caixa|lucro|prejuizo|resultado|saude financeira|como (?:anda|esta) (?:a |minha )?empresa)\b/.test(
+      question,
+    )
+  )
+    intent = "cash";
+  else if (
+    /\b(?:contas|pendencias|valores) em aberto\b|\bresumo financeiro\b/.test(
+      question,
+    )
+  )
+    intent = "balances";
+  if (!intent) return undefined;
+  if (/\b(?:essa semana|esta semana|semana passada)\b/.test(question))
+    return { unsupported: true };
+  if (lastMonth && !["paid", "received", "cash"].includes(intent))
+    return { unsupported: true };
+  if (
+    currentMonth &&
+    ["payables", "overdue", "upcoming", "balances"].includes(intent)
+  )
+    return { unsupported: true };
+  return {
+    intent,
+    period: lastMonth ? "previous" : currentMonth ? "month" : "default",
+  };
+}
