@@ -1,3 +1,5 @@
+import { FinancialAlerts, Intelligence } from "./IntelligencePanel";
+import { IntelligenceShowcase, PlanComparison } from "./IntelligenceMarketing";
 import Captcha, { captchaKey } from "./Captcha";
 import AdminCustomers from "./AdminCustomers";
 import React, { useEffect, useState } from "react";
@@ -309,6 +311,7 @@ function Landing() {
             ))}
           </div>
         </section>
+        <IntelligenceShowcase />
         <section id="planos">
           <div className="section-heading">
             <span className="eyebrow">PLANOS QUE ACOMPANHAM SEU NEGÓCIO</span>
@@ -316,6 +319,7 @@ function Landing() {
             <p>Teste por 72 horas. Cancele a renovação pela sua conta.</p>
           </div>
           <Plans choose={(p) => go("/auth?signup=1&plan=" + p)} />
+          <PlanComparison choose={(p) => go("/auth?signup=1&plan=" + p)} />
         </section>
         <section className="custom">
           <div>
@@ -2326,10 +2330,14 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
               archive={archive}
             />
           ) : (
-            <Dashboard rows={rows} org={org} create={(k) => create(k)} />
+            <>
+              {!demo && ["owner", "manager", "finance", "viewer"].includes(org.role) && <FinancialAlerts rows={rows} />}
+              <Dashboard rows={rows} org={org} create={(k) => create(k)} />
+            </>
           )}
         </main>
       </div>
+      {!demo && allowed && <Intelligence key={org.id} org={org} reload={reload} page={title} records={rows} />}
       {editor && (
         <Editor
           kind={editor.kind}

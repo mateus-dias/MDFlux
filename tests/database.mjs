@@ -21,6 +21,7 @@ for (const f of [
   "005_member_storage.sql",
   "006_activity.sql",
   "007_payment_ordering.sql",
+  "009_intelligence.sql",
 ]) {
   let sql = await fs.readFile(
     new URL("../supabase/migrations/" + f, import.meta.url),
@@ -282,5 +283,36 @@ for (const finalStatus of ['refunded','charged_back']) {
 check('refunds and chargebacks cannot be resurrected by delayed approval');
 await db.exec(await fs.readFile(new URL('../supabase/migrations/007_payment_ordering.sql',import.meta.url),'utf8'));
 check('additive payment migration can be reapplied without losing data');
+await db.exec("reset role");
+await db.query("update subscriptions set plan='essencial', status='active', paid_until=now()+interval '1 day', suspended=false where org_id=$1", [a]);
+await asUser(u1);
+assert.equal(typeof (await db.query("select intelligence_finance($1) as report",[a])).rows[0].report.receivable, "number");
+await rejects(() => db.query("select intelligence_finance($1,true)",[a]));
+await rejects(() => db.query("select intelligence_finance($1)",[b]));
+const operation = "33333333-3333-4333-8333-333333333333";
+const batch = JSON.stringify([
+  {kind:"expense",name:"Parcela 1/2",amount:25.01,due_date:"2026-12-31",installment:1},
+  {kind:"expense",name:"Parcela 2/2",amount:25,due_date:"2027-01-31",installment:2},
+]);
+const batchCall = (id, rows) => db.query("select intelligence_create($1,$2,$3) as ids",[a,id,rows]);
+await rejects(() => batchCall(operation,batch));
+await db.exec("reset role");
+await db.query("update subscriptions set plan='profissional' where org_id=$1",[a]);
+await asUser(u1);
+const first = (await batchCall(operation,batch)).rows[0].ids;
+assert.equal(first.length,2);
+assert.deepEqual((await batchCall(operation,batch)).rows[0].ids,first);
+await rejects(() => batchCall(operation,JSON.stringify([{kind:"client",name:"Reuso incorreto"}])));
+await rejects(() => batchCall("44444444-4444-4444-8444-444444444444", JSON.stringify([
+  {kind:"client",name:"Não deve sobreviver"},{kind:"expense",name:"Inválido",amount:-1},
+])));
+assert.equal((await db.query("select count(*)::int as n from records where name='Não deve sobreviver'")).rows[0].n,0);
+assert.equal((await db.query("select count(*)::int as n from records where data->>'installment_group'=$1",[operation])).rows[0].n,2);
+check("Intelligence enforces plan and organization, saves batches atomically and deduplicates retries");
+await db.query("select intelligence_reminder($1,2,true)",[a]);
+assert.equal((await db.query("select intelligence_inbox($1) as inbox",[a])).rows[0].inbox.enabled,true);
+await rejects(() => db.query("select intelligence_run_reminders()"));
+await db.exec("reset role");
+check("Intelligence reminders can be configured only by entitled members and the job is service-only");
 console.log(`\n${passed} database checks passed.`);
 await db.close();
