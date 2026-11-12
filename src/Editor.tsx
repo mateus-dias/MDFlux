@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import type { Row, Kind, Org } from "./model";
-import { modules, labels, documentKinds } from "./model";
+import { modules, labels, documentKinds, canWrite } from "./model";
 import { total, money, today } from "./domain.mjs";
-import { supabase } from "./api";
+import { save, supabase } from "./api";
 export default function Editor({
   kind,
   row,
@@ -28,6 +28,28 @@ export default function Editor({
     [data, setData] = useState<Record<string, any>>(row?.data || {}),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [newContact, setNewContact] = useState<string | null>(null);
+  const [contextContacts, setContextContacts] = useState<Row[]>([]);
+  const contactKey = kind === "expense" ? "supplier_id" : "client_id";
+  const contactKind = kind === "expense" ? "supplier" : "client";
+  const contactLabel = kind === "expense" ? "fornecedor" : "cliente";
+
+  async function addContact() {
+    const label = newContact?.trim();
+    if (!label || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const record = { kind: contactKind, name: label, status: "active", data: {} } as const;
+      const saved: Row = await save(record, org.id);
+      setContextContacts((old) => [...old, saved]);
+      field(contactKey, saved.id);
+      setNewContact(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Não foi possível cadastrar.");
+    } finally { setBusy(false); }
+  }
+
   const field = (key: string, value: any) =>
     setData((d) => ({ ...d, [key]: value }));
   const isDoc = documentKinds.includes(kind),
@@ -183,22 +205,34 @@ export default function Editor({
             )}
           </div>
           {!contact && kind !== "product" && (
-            <label>
-              Cliente vinculado
-              <select
-                value={data.client_id || ""}
-                onChange={(e) => field("client_id", e.target.value)}
-              >
-                <option value="">Sem vínculo</option>
-                {rows
-                  .filter((r) => r.kind === "client")
-                  .map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            <div>
+              <label>
+                {contactLabel === "cliente" ? "Cliente vinculado" : "Fornecedor vinculado"}
+                <select value={data[contactKey] || ""} onChange={(event) => field(contactKey, event.target.value)}>
+                  <option value="">Sem vínculo</option>
+                  {[...rows, ...contextContacts].filter((r) => r.kind === contactKind).map((r) =>
+                    <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </label>
+              {kind === "expense" && <label>
+                Cliente vinculado (opcional)
+                <select value={data.client_id || ""} onChange={(event) => field("client_id", event.target.value)}>
+                  <option value="">Sem vínculo</option>
+                  {rows.filter((r) => r.kind === "client").map((r) =>
+                    <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </label>}
+              {!demo && canWrite(org, contactKind) && (newContact === null
+                ? <button type="button" disabled={busy} onClick={() => setNewContact("")}>Cadastrar {contactLabel}</button>
+                : <div className="form-grid">
+                    <label>Nome do {contactLabel}
+                      <input value={newContact} maxLength={200} onChange={(event) => setNewContact(event.target.value)}
+                        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addContact(); } }} />
+                    </label>
+                    <button type="button" disabled={busy || !newContact.trim()} onClick={() => void addContact()}>Salvar {contactLabel}</button>
+                    <button type="button" disabled={busy} onClick={() => setNewContact(null)}>Cancelar cadastro</button>
+                  </div>)}
+            </div>
           )}
           {contact && (
             <>

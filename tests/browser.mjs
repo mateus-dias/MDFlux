@@ -64,6 +64,14 @@ for (const viewport of [
     ),
     true,
   );
+  const comparison = page.getByRole("table", { name: "Compare os planos e escolha o ideal para sua empresa" });
+  assert.equal(await comparison.locator("tbody tr").count(), 11);
+  assert.equal(await comparison.getByRole("row", { name: /Cadastros pelo chat/ }).getByRole("img", { name: "Incluído" }).count(), 2);
+  assert.equal(await comparison.getByRole("button", {name:"Escolher Profissional"}).count(),1);
+  const showcase = page.getByRole("region",{name:"Conheça o MD Flux Intelligence"});
+  assert.ok(await showcase.getByText(/valores ilustrativos/).isVisible());
+  assert.equal(await page.locator(".intelligence-showcase").evaluate((node) =>
+    Boolean(node.compareDocumentPosition(document.querySelector("#planos")) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
   await page.screenshot({
     path: `test-results/site-${viewport.width}.png`,
     fullPage: true,
