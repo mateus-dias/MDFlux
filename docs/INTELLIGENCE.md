@@ -26,3 +26,9 @@ Esta entrega evolui o projeto existente. O assistente usa o Supabase Auth e as r
 ## Limites desta versão
 
 A interpretação local depende da Prompt API e do suporte a português. A biblioteca de comandos ainda não cobre todos os exemplos do Prompt Mestre. Cadastros contextuais se limitam a clientes e fornecedores. A importação usa cabeçalhos definidos e não tem editor de mapeamento. As notificações são internas e os lembretes têm uma regra de vencimento por usuário e empresa. E-mail e push, baixa de pagamentos pelo chat, documentos operacionais pelo chat e relatórios inteligentes exportáveis continuam pendentes.
+
+## IA em nuvem opcional
+
+Use uma conta Cloudflare Workers Free. Na Netlify, configure o ID da conta em MDFLUX_CLOUDFLARE_ACCOUNT_ID e o token com permissão de inferência Workers AI em MDFLUX_CLOUDFLARE_AI_TOKEN, no contexto e escopo de Functions. Configure MDFLUX_CLOUD_AI=true nas Functions e VITE_MDFLUX_CLOUD_AI=true no build. Mantenha o token fora de variáveis VITE e do repositório.
+
+A integração se limita a mensagens de conversa que o fluxo do sistema não resolveu e requer consentimento na interface. Envia o texto digitado e instruções fixas sobre o produto. O histórico, anexos e registros consultados no banco não são enviados. A função valida sessão e empresa, limita chamadas e retorna ao fluxo local em caso de indisponibilidade. O modelo não tem ferramentas de escrita. As instruções são atualizadas junto com o produto e não são treinamento automático com conversas de clientes.

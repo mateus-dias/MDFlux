@@ -6,7 +6,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import { contactNumber } from "./commercial.mjs";
-import { rpc } from "./api";
+import { endpoint, rpc } from "./api";
 import { money } from "./domain.mjs";
 import {
   installments,
@@ -40,6 +40,10 @@ export function Intelligence({
   page: string;
   records: Row[];
 }) {
+  const cloudAvailable =
+    (import.meta as ImportMeta & { env?: { VITE_MDFLUX_CLOUD_AI?: string } })
+      .env?.VITE_MDFLUX_CLOUD_AI === "true";
+  const [cloud, setCloud] = useState(false);
   const [local, setLocal] = useState(false);
   const lastQuery = useRef<{ intent: string; period: string } | undefined>(
     undefined,
@@ -195,6 +199,24 @@ export function Intelligence({
           return;
         }
         if (!query?.intent) {
+          if (cloudAvailable && cloud) {
+            try {
+              const response = await endpoint("intelligence-cloud", {
+                org: org.id,
+                message: value,
+                consent: true,
+              });
+              if (typeof response.reply === "string" && response.reply.trim()) {
+                add("Assistente", response.reply);
+                return;
+              }
+            } catch {
+              add(
+                "Assistente",
+                "A IA em nuvem está indisponível neste momento.",
+              );
+            }
+          }
           if (local) {
             const reply = await converseLocally(value);
             if (reply) {
@@ -467,6 +489,19 @@ export function Intelligence({
           </header>
           <details className="intelligence-tools">
             <summary>Sugestões e ferramentas</summary>
+            {cloudAvailable && (
+              <label className="intelligence-note">
+                <input
+                  type="checkbox"
+                  checked={cloud}
+                  disabled={busy}
+                  onChange={(event) => setCloud(event.target.checked)}
+                />
+                Conversar com IA em nuvem. Quando necessário, a mensagem
+                digitada é enviada à Cloudflare. Evite dados pessoais ou
+                confidenciais.
+              </label>
+            )}
             <div className="intelligence-suggestions">
               <button
                 type="button"
