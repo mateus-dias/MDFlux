@@ -18,9 +18,8 @@ export default wrap(async (req) => {
     !token
   )
     return result({ error: "IA em nuvem indisponível." }, 503);
-  const { org, message, consent } = await body(req);
+  const { org, message } = await body(req);
   if (
-    consent !== true ||
     typeof org !== "string" ||
     !/^[0-9a-f-]{36}$/i.test(org) ||
     typeof message !== "string" ||
