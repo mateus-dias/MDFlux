@@ -47,12 +47,13 @@ export default wrap(async (req) => {
         },
         signal: AbortSignal.timeout(15000),
         body: JSON.stringify({
-          model: "@cf/meta/llama-3.1-8b-instruct",
+          model: "@cf/google/gemma-4-26b-a4b-it",
           messages: [
             { role: "system", content: instructions },
             { role: "user", content: message.trim() },
           ],
-          max_tokens: 350,
+          max_completion_tokens: 900,
+          chat_template_kwargs: { enable_thinking: false },
           stream: false,
         }),
       },
@@ -74,9 +75,23 @@ export default wrap(async (req) => {
         503,
       );
     }
-    const content = (await response.json()).choices?.[0]?.message?.content;
-    if (typeof content !== "string" || !content.trim())
+    const payload = await response.json();
+    const output = payload.result ?? payload;
+    const raw = output.choices?.[0]?.message?.content ?? output.response;
+    const content = Array.isArray(raw)
+      ? raw
+          .filter((part) => part?.type === "text")
+          .map((part) => part.text)
+          .join("")
+      : raw;
+    if (typeof content !== "string" || !content.trim()) {
+      console.warn(
+        "Workers AI completion has no text",
+        Object.keys(output),
+        output.choices?.[0]?.finish_reason,
+      );
       return result({ error: "IA em nuvem sem resposta." }, 503);
+    }
     return result({ reply: content.trim().slice(0, 1200) });
   } catch (error) {
     console.warn("Workers AI request failed", error?.name);
