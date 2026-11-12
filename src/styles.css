@@ -1962,23 +1962,37 @@ input[type="file"] {
 .intelligence-launcher { position:fixed; bottom:calc(1rem + env(safe-area-inset-bottom)); right:1rem; z-index:20; }
 .intelligence-panel {
   position:fixed; right:1rem; bottom:calc(4.5rem + env(safe-area-inset-bottom)); z-index:21;
-  width:min(27rem,calc(100vw - 2rem)); height:min(36rem,calc(100dvh - 6rem));
+  width:min(48rem,calc(100vw - 2rem)); height:min(52rem,calc(100dvh - 6rem));
   display:flex; flex-direction:column; gap:.75rem; padding:1rem;
   border:1px solid #d8e6ff; border-radius:1rem; background:#fff; color:#132949;
   box-shadow:0 12px 40px #102c4b35;
 }
 .intelligence-panel header,.intelligence-panel form { display:flex; justify-content:space-between; gap:.5rem; align-items:center; }
 .intelligence-panel header small,.intelligence-note { display:block; color:#385474; }
-.intelligence-suggestions { display:flex; flex-wrap:wrap; gap:.35rem; }
+.intelligence-tools { flex:none; max-height:27%; overflow:auto; }
+.intelligence-tools summary { cursor:pointer; padding:.35rem 0; font-size:.9rem; color:#385474; }
+.intelligence-tools .intelligence-note { margin-top:.5rem; }
+.intelligence-tools input[type="file"] { max-width:100%; }
+.intelligence-suggestions { display:flex; flex-wrap:wrap; gap:.35rem; padding-top:.35rem; }
 .intelligence-suggestions button { font-size:.8rem; min-height:36px; }
-.intelligence-history { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; }
+.intelligence-history { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; padding:.2rem .25rem; }
+.intelligence-history .intelligence-message {
+  width:fit-content; max-width:88%; margin:.6rem 0; padding:.75rem 1rem; font-size:1rem; line-height:1.55;
+}
+.intelligence-history .intelligence-message-assistant { margin-inline-end:auto; background:#e5efff; }
+.intelligence-history .intelligence-message-user { margin-inline-start:auto; background:#e1f4eb; color:#163d32; }
 .intelligence-history p,.intelligence-history section { white-space:pre-wrap; overflow-wrap:anywhere; border-radius:.6rem; padding:.65rem; background:#edf4ff; }
 .intelligence-panel form input { flex:1; min-width:0; }
 @media (max-width: 650px) {
   .intelligence-showcase { grid-template-columns:1fr; }
   .plan-comparison th,.plan-comparison td { font-size:.8rem; padding:.55rem .28rem; overflow-wrap:anywhere; }
   .plan-comparison tfoot button { font-size:.73rem; padding:.35rem; }
+  .intelligence-panel {
+    inset:0; width:100%; height:100dvh; border-radius:0;
+    padding: max(.75rem, env(safe-area-inset-top)) .75rem max(.75rem, env(safe-area-inset-bottom));
+  }
   .intelligence-panel form input { font-size:16px; }
+  .intelligence-history .intelligence-message { max-width:94%; padding:.65rem .8rem; }
 }
 .intelligence-summary { padding:1rem 1.25rem; margin-bottom:1rem; border:1px solid #d8e6ff; border-radius:1rem; background:#eef5ff; color:#132949; }
 .intelligence-summary h2 { margin:0 0 .5rem; font-size:1.1rem; }

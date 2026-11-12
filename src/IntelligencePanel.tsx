@@ -1,5 +1,5 @@
 import { classifyLocally, enableLocalModel } from "./intelligence-local";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import { contactNumber } from "./commercial.mjs";
 import { rpc } from "./api";
@@ -35,6 +35,7 @@ export function Intelligence({
   records: Row[];
 }) {
   const [local, setLocal] = useState(false);
+  const historyRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -76,6 +77,11 @@ export function Intelligence({
       live = false;
     };
   }, [open, advanced, financeRole, org.id]);
+
+  useEffect(() => {
+    const history = historyRef.current;
+    if (open && history) history.scrollTop = history.scrollHeight;
+  }, [open, messages, busy, preview, rule]);
 
   async function run(prompt: string) {
     const value = prompt.trim();
@@ -411,61 +417,92 @@ export function Intelligence({
               <X size={20} />
             </button>
           </header>
-          <div className="intelligence-suggestions">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={async () => {
-                if (local) {
-                  setLocal(false);
-                  return;
-                }
-                setBusy(true);
-                try {
-                  const available = await enableLocalModel();
-                  setLocal(available);
-                  add(
-                    "Assistente",
-                    available
-                      ? "Interpretação local ativada para consultas."
-                      : "IA local indisponível neste navegador. Os comandos continuam disponíveis.",
-                  );
-                } catch {
-                  add(
-                    "Assistente",
-                    "Não foi possível carregar o modelo local. Use os comandos ou sugestões.",
-                  );
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              {local
-                ? "Desativar IA local"
-                : "Ativar IA local (download pelo navegador)"}
-            </button>
-            {[
-              "Quanto tenho para receber?",
-              "Quais contas estão vencidas?",
-              ...(advanced
-                ? ["Analise meu caixa", "Cadastre um cliente chamado "]
-                : []),
-            ].map((item) => (
+          <details className="intelligence-tools">
+            <summary>Sugestões e ferramentas</summary>
+            <div className="intelligence-suggestions">
               <button
-                key={item}
                 type="button"
-                disabled={busy || !!preview || !!rule}
-                onClick={() =>
-                  item.endsWith(" ") ? setText(item) : void run(item)
+                disabled={busy}
+                onClick={async () => {
+                  if (local) {
+                    setLocal(false);
+                    return;
+                  }
+                  setBusy(true);
+                  try {
+                    const available = await enableLocalModel();
+                    setLocal(available);
+                    add(
+                      "Assistente",
+                      available
+                        ? "Interpretação local ativada para consultas."
+                        : "IA local indisponível neste navegador. Os comandos continuam disponíveis.",
+                    );
+                  } catch {
+                    add(
+                      "Assistente",
+                      "Não foi possível carregar o modelo local. Use os comandos ou sugestões.",
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {local
+                  ? "Desativar IA local"
+                  : "Ativar IA local (download pelo navegador)"}
+              </button>
+              {[
+                "Quanto tenho para receber?",
+                "Quais contas estão vencidas?",
+                ...(advanced
+                  ? ["Analise meu caixa", "Cadastre um cliente chamado "]
+                  : []),
+              ].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  disabled={busy || !!preview || !!rule}
+                  onClick={() =>
+                    item.endsWith(" ") ? setText(item) : void run(item)
+                  }
+                >
+                  {item.trim()}
+                </button>
+              ))}
+            </div>
+            {advanced && (
+              <label className="intelligence-note">
+                Importar planilha (XLSX ou CSV)
+                <input
+                  type="file"
+                  accept=".xlsx,.csv"
+                  disabled={busy || !!preview || !!rule}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (file) void importFile(file);
+                  }}
+                />
+                <small>Colunas: tipo, descrição, valor, vencimento.</small>
+              </label>
+            )}
+          </details>
+          <div
+            className="intelligence-history"
+            ref={historyRef}
+            role="log"
+            aria-live="polite"
+          >
+            {messages.map((message, index) => (
+              <p
+                key={index}
+                className={
+                  message.role === "Você"
+                    ? "intelligence-message intelligence-message-user"
+                    : "intelligence-message intelligence-message-assistant"
                 }
               >
-                {item.trim()}
-              </button>
-            ))}
-          </div>
-          <div className="intelligence-history" role="log" aria-live="polite">
-            {messages.map((message, index) => (
-              <p key={index}>
                 <strong>{message.role}</strong>
                 {message.text}
               </p>
@@ -623,22 +660,6 @@ export function Intelligence({
               Enviar
             </button>
           </form>
-          {advanced && (
-            <label className="intelligence-note">
-              Importar planilha (XLSX ou CSV)
-              <input
-                type="file"
-                accept=".xlsx,.csv"
-                disabled={busy || !!preview || !!rule}
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = "";
-                  if (file) void importFile(file);
-                }}
-              />
-              <small>Colunas: tipo, descrição, valor, vencimento.</small>
-            </label>
-          )}
           {report?.overdue_income > 0 && (
             <small className="intelligence-note">
               Recebimentos vencidos · {money(report.overdue_income)}
