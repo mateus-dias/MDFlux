@@ -161,7 +161,7 @@ export function interpretFinance(text, previous) {
   )
     intent = "cash";
   else if (
-    /\b(?:contas|pendencias|valores) em aberto\b|\bresumo financeiro\b/.test(
+    /\b(?:contas|pendencias|valores) em aberto\b|\bresumo (?:da (?:minha |sua )?area )?financeir[oa]\b/.test(
       question,
     )
   )
