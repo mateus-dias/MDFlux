@@ -181,3 +181,25 @@ export function interpretFinance(text, previous) {
     period: lastMonth ? "previous" : currentMonth ? "month" : "default",
   };
 }
+
+export function smallTalk(text) {
+  const message = normalize(text)
+    .trim()
+    .replace(/[!?.,]+$/g, "");
+  if (
+    /^(?:ola|oi|opa|e ai|bom dia|boa tarde|boa noite)(?:[ ,]+(?:tudo bem|como vai))?$/.test(
+      message,
+    )
+  )
+    return "Olá! Como posso ajudar? Você pode me perguntar sobre o financeiro da sua empresa ou pedir ajuda para usar o MD Flux.";
+  if (/^(?:obrigad[oa]|muito obrigad[oa]|valeu|agradeco)$/.test(message))
+    return "De nada! Se precisar de mais alguma coisa, é só me chamar.";
+  if (/^(?:tudo bem|como vai)$/.test(message))
+    return "Tudo bem por aqui! Como posso ajudar você no MD Flux?";
+  if (
+    /^(?:quem (?:e|eh) voce|o que voce (?:faz|consegue fazer)|como (?:voce funciona|usar o assistente))$/.test(
+      message,
+    )
+  )
+    return "Sou o assistente do MD Flux. Posso consultar contas a receber, contas a pagar e vencimentos. Os planos Profissional e Empresarial também permitem analisar o caixa e preparar cadastros e lançamentos.";
+}

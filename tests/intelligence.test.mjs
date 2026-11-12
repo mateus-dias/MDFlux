@@ -5,6 +5,7 @@ import {
   interpretFinance,
   parseAmount,
   parseDue,
+  smallTalk,
 } from "../src/intelligence.mjs";
 import { readFinancialFile } from "../src/intelligence-import.mjs";
 
@@ -70,4 +71,15 @@ test("financial questions support paraphrases, follow-ups and bounded periods", 
     undefined,
   );
   assert.equal(interpretFinance("Não quero que mostre o caixa"), undefined);
+});
+
+test("the assistant greets naturally without the local model", () => {
+  assert.match(smallTalk("Olá!"), /^Olá!/);
+  assert.match(smallTalk("Boa tarde, tudo bem?"), /^Olá!/);
+  assert.match(smallTalk("Valeu!"), /^De nada!/);
+  assert.equal(smallTalk("Olá, quanto tenho para pagar?"), undefined);
+  assert.equal(
+    interpretFinance("Me dê um resumo da minha área financeira").intent,
+    "balances",
+  );
 });

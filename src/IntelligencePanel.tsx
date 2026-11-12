@@ -1,4 +1,8 @@
-import { classifyLocally, enableLocalModel } from "./intelligence-local";
+import {
+  classifyLocally,
+  converseLocally,
+  enableLocalModel,
+} from "./intelligence-local";
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import { contactNumber } from "./commercial.mjs";
@@ -11,6 +15,7 @@ import {
   normalize,
   parseAmount,
   parseDue,
+  smallTalk,
 } from "./intelligence.mjs";
 import type { Org, Row } from "./model";
 
@@ -94,6 +99,11 @@ export function Intelligence({
     setText("");
     setBusy(true);
     try {
+      const greeting = smallTalk(value);
+      if (greeting) {
+        add("Assistente", greeting);
+        return;
+      }
       const command = normalize(value);
       const registration =
         /^(?:cadastre|crie|registre)\s+(?:um[a]?\s+)?(cliente|fornecedor|servi[cç]o)\s+(?:chamad[oa]\s+)?(.+)$/i.exec(
@@ -185,6 +195,13 @@ export function Intelligence({
           return;
         }
         if (!query?.intent) {
+          if (local) {
+            const reply = await converseLocally(value);
+            if (reply) {
+              add("Assistente", reply);
+              return;
+            }
+          }
           add(
             "Assistente",
             "O que você quer consultar: valores a receber, a pagar, contas vencidas ou resultado de caixa?",

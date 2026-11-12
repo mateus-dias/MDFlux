@@ -45,3 +45,29 @@ export async function classifyLocally(text: string) {
     session?.destroy();
   }
 }
+
+export async function converseLocally(text: string) {
+  const api = model();
+  if (!api) return undefined;
+  let session: Session | undefined;
+  try {
+    const conversation = {
+      ...options,
+      expectedOutputs: [{ type: "text", languages: ["pt"] }],
+    };
+    if ((await api.availability(conversation)) !== "available")
+      return undefined;
+    const signal = AbortSignal.timeout(12_000);
+    session = await api.create({ ...conversation, signal });
+    const reply = await session.prompt(
+      "Você é o assistente do MD Flux. Responda de forma breve e natural em português do Brasil. Pode conversar e orientar sobre gestão. Para explicar o sistema, use somente estes fatos: o MD Flux tem clientes, fornecedores, orçamentos, propostas, contratos e financeiro. O assistente pode consultar saldos e vencimentos. Nos planos Profissional e Empresarial, pode preparar lançamentos, parcelamentos, importações e lembretes. Você está respondendo sem acesso ao banco de dados e sem ferramentas. Nunca invente valores ou dados da empresa, nem afirme que executou uma ação. Se faltar informação, faça uma pergunta curta. Mensagem: " +
+        JSON.stringify(text),
+      { signal },
+    );
+    return reply.trim().slice(0, 1200) || undefined;
+  } catch {
+    return undefined;
+  } finally {
+    session?.destroy();
+  }
+}
