@@ -99,7 +99,26 @@ export async function mp(path, method = "GET", data, key) {
     ...(data ? { body: JSON.stringify(data) } : {}),
     signal: AbortSignal.timeout(15000),
   });
-  if (!r.ok) throw new Error("Mercado Pago: " + r.status);
+  if (!r.ok) {
+    if (path === "/preapproval" && method === "POST") {
+      const payload = await r.json().catch(() => null);
+      const details = [payload?.message, payload?.error, ...(Array.isArray(payload?.cause)
+        ? payload.cause.map((cause) => cause?.description ?? cause?.message)
+        : [])].filter((value) => typeof value === "string").join(" ").toLowerCase();
+      const reasons = [
+        [/payer.*collector|collector.*payer|real or test users/, "buyer_seller_environment"],
+        [/access token|invalid_token|unauthorized|invalid credentials/, "credential"],
+        [/payer[_ ]email|invalid email|invalid payer/, "buyer_email"],
+        [/back[_ ]url|redirect[_ ]url/, "return_url"],
+        [/preapproval[_ ]plan|application[_ ]id|client[_ ]id/, "application"],
+        [/card[_ ]token/, "card_token"],
+        [/auto_recurring|transaction_amount|currency_id/, "recurrence_or_value"],
+      ];
+      const reason = reasons.find(([pattern]) => pattern.test(details))?.[1] ?? "unknown";
+      console.warn("Mercado Pago recusou criar assinatura", { status: r.status, reason });
+    }
+    throw new Error("Mercado Pago: " + r.status);
+  }
   return r.json();
 }
 export function verifyWebhook(req, id, secret, now = Date.now()) {
