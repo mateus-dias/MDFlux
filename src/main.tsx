@@ -652,13 +652,18 @@ function Dashboard({
   org,
   create,
   home = false,
+  showOverview = true,
+  assistant,
 }: {
   rows: Row[];
   org: Org;
   create: (k: Kind) => void;
   home?: boolean;
+  showOverview?: boolean;
+  assistant?: React.ReactNode;
 }) {
-  const s = summarize(rows);
+  const overviewRows = showOverview ? rows : [];
+  const s = summarize(overviewRows);
   const businessDate = new Date();
   const businessDay = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", dateStyle: "short" }).format(businessDate);
   const businessMonth = businessDay.slice(0, 7);
@@ -668,7 +673,7 @@ function Dashboard({
     const m = new Date(Date.UTC(year, month - 6 + i, 15)).toISOString().slice(0, 7);
     let income = 0,
       expense = 0;
-    for (const r of rows.filter((r) => ["income", "expense"].includes(r.kind)))
+    for (const r of overviewRows.filter((r) => ["income", "expense"].includes(r.kind)))
       for (const p of r.data.settlements || [])
         if (String(p.date).startsWith(m)) {
           if (r.kind === "income") income += Math.round(Number(p.amount) * 100);
@@ -681,7 +686,7 @@ function Dashboard({
   const received = home ? current.income : s.received;
   const paid = home ? current.expense : s.paid;
   const cash = (Math.round(received * 100) - Math.round(paid * 100)) / 100;
-  const pending = rows.filter((row) =>
+  const pending = overviewRows.filter((row) =>
     ["income", "expense", "order"].includes(row.kind) &&
     row.status !== "canceled" && row.due_date && Number(row.amount) > Number(row.paid),
   );
@@ -695,6 +700,7 @@ function Dashboard({
     .slice(0, 5);
   return (
     <>
+      {showOverview && <>
       <div className="page-title">
         <div>
           <h1>Vamos organizar seu negócio?</h1>
@@ -763,6 +769,9 @@ function Dashboard({
           </article>
         ))}
       </div>
+      </>}
+      {assistant}
+      {showOverview && <>
       <div className="dashboard-columns">
         <section className="panel">
           <div className="section-line">
@@ -808,7 +817,7 @@ function Dashboard({
             ["Ordens de serviço abertas", s.orders],
             [
               "Propostas aprovadas",
-              rows.filter(
+              overviewRows.filter(
                 (r) => r.kind === "proposal" && r.status === "approved",
               ).length,
             ],
@@ -843,7 +852,7 @@ function Dashboard({
         </section>
         <section className="panel">
           <h3>Atividades recentes</h3>
-          {rows.slice(0, 5).map((r) => (
+          {overviewRows.slice(0, 5).map((r) => (
             <div className="stat-row" key={r.id}>
               <span>
                 {r.name}
@@ -854,6 +863,7 @@ function Dashboard({
           ))}
         </section>
       </div>
+      </>}
     </>
   );
 }
@@ -1836,6 +1846,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
       </div>
     );
   const allowed = demo || access(org.subscription, tick + serverDelta);
+  const overview = !["plans", "settings", "reports"].includes(page) && !modules[page as Kind];
   const expired = !allowed && !["plans", "settings", "ticket"].includes(page);
   const title =
     page === "dashboard"
@@ -2200,6 +2211,29 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
               {error}
             </p>
           )}
+          {allowed && <>
+            {overview && !demo && ["owner", "manager", "finance", "viewer"].includes(org.role) && (
+              <FinancialAlerts rows={rows} />
+            )}
+            <Dashboard
+              rows={rows}
+              org={org}
+              create={create}
+              home
+              showOverview={overview}
+              assistant={
+                <Intelligence
+                  key={org.id}
+                  org={org}
+                  reload={reload}
+                  page={title}
+                  records={rows}
+                  demo={demo}
+                  embedded={overview}
+                />
+              }
+            />
+          </>}
           {expired ? (
             <section className="expired panel">
               <Clock size={44} />
@@ -2347,16 +2381,9 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
               detail={setDetail}
               archive={archive}
             />
-          ) : (
-            <>
-              {!demo && ["owner", "manager", "finance", "viewer"].includes(org.role) && <FinancialAlerts rows={rows} />}
-              <Dashboard rows={rows} org={org} create={(k) => create(k)} home />
-              {demo && <Intelligence key={org.id} org={org} reload={reload} page={title} records={rows} demo />}
-            </>
-          )}
+          ) : null}
         </main>
       </div>
-      {!demo && allowed && <Intelligence key={org.id} org={org} reload={reload} page={title} records={rows} />}
       {editor && (
         <Editor
           kind={editor.kind}
