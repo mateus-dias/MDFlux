@@ -3,9 +3,10 @@ import {plans} from '../../src/domain.mjs';
 
 export function validateRecoveredCheckout(attempt, subscription) {
   const plan=plans[attempt.plan], recurring=subscription.auto_recurring;
+  const expectedAmount = Number(attempt.expected_amount ?? plan?.price);
   if (!plan || !subscription.id || subscription.external_reference!==attempt.id ||
       (attempt.provider_id && attempt.provider_id!==subscription.id) ||
-      !recurring || Number(recurring.transaction_amount)!==plan.price ||
+      !recurring || Number(recurring.transaction_amount)!==expectedAmount ||
       recurring.currency_id!=='BRL' || recurring.frequency!==1 || recurring.frequency_type!=='months' ||
       !['pending','authorized','paused','cancelled'].includes(subscription.status)) {
     throw new Error('Assinatura não corresponde ao checkout reservado.');
