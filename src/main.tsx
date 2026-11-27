@@ -45,7 +45,7 @@ import {
   loadRows,
   save,
 } from "./api";
-import { money, plans, summarize, access, today } from "./domain.mjs";
+import { money, plans, singlePlan, summarize, access, today } from "./domain.mjs";
 import { modules, labels, documentKinds, canWrite } from "./model";
 import type { Kind, Row, Org } from "./model";
 import { companyLogo, exportCSV, exportXLSX, pdf, prepareCompanyLogo } from "./exports";
@@ -101,15 +101,19 @@ function Logo({ image, name = "MD Flux" }: { image?: string; name?: string } = {
     </a>
   );
 }
+const showSinglePlan = (import.meta as ImportMeta & { env?: { VITE_MDFLUX_SINGLE_PLAN?: string } })
+  .env?.VITE_MDFLUX_SINGLE_PLAN === "true";
+
 function Plans({ choose }: { choose: (p: string) => void }) {
+  const offers = showSinglePlan ? [[singlePlan.key, singlePlan] as const] : Object.entries(plans);
   return (
     <div className="plan-grid">
-      {Object.entries(plans).map(([key, p]) => (
+      {offers.map(([key, p]) => (
         <article
           className={"plan " + (key === "profissional" ? "featured" : "")}
           key={key}
         >
-          {key === "profissional" && (
+          {!showSinglePlan && key === "profissional" && (
             <span className="recommended">RECOMENDADO</span>
           )}
           <span className="eyebrow">{p.name}</span>
@@ -118,7 +122,7 @@ function Plans({ choose }: { choose: (p: string) => void }) {
             <small>/mês</small>
           </h2>
           <p>
-            {key === "essencial"
+            {showSinglePlan ? "Seu assistente para clientes, documentos e finanças." : key === "essencial"
               ? "Para organizar sua rotina."
               : key === "profissional"
                 ? "Para crescer com sua equipe."
@@ -147,7 +151,7 @@ function Plans({ choose }: { choose: (p: string) => void }) {
             className={key === "profissional" ? "primary" : "secondary"}
             onClick={() => choose(key)}
           >
-            Escolher {p.name}
+            {showSinglePlan ? "Assinar MD Flux" : "Escolher " + p.name}
           </button>
         </article>
       ))}
@@ -309,15 +313,14 @@ function Landing() {
             ))}
           </div>
         </section>
-        <IntelligenceShowcase />
+        <IntelligenceShowcase singleOffer={showSinglePlan} />
         <section id="planos">
           <div className="section-heading">
-            <span className="eyebrow">PLANOS QUE ACOMPANHAM SEU NEGÓCIO</span>
-            <h2>Escolha seu próximo passo.</h2>
-            <p>Teste por 72 horas. Cancele a renovação pela sua conta.</p>
+            <h2>{showSinglePlan ? "Assinatura mensal" : "Escolha seu próximo passo."}</h2>
+            <p>{showSinglePlan ? "Cancele a renovação pela sua conta." : "Teste por 72 horas. Cancele a renovação pela sua conta."}</p>
           </div>
           <Plans choose={(p) => go("/auth?signup=1&plan=" + p)} />
-          <PlanComparison choose={(p) => go("/auth?signup=1&plan=" + p)} />
+          {!showSinglePlan && <PlanComparison choose={(p) => go("/auth?signup=1&plan=" + p)} />}
         </section>
         <section className="custom">
           <div>
@@ -1967,7 +1970,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
     }
     try {
       track("InitiateCheckout", { plan });
-      const r = await endpoint("checkout", { org: org!.id, plan });
+      const r = await endpoint("checkout", { org: org!.id, plan, displayedPrice: showSinglePlan ? singlePlan.price : plans[plan as keyof typeof plans].price });
       location.assign(r.url);
     } catch (e) {
       notify((e as Error).message);
