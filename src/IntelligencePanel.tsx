@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Sparkles, X } from "lucide-react";
 import { contactNumber } from "./commercial.mjs";
 import { endpoint, rpc } from "./api";
-import { money } from "./domain.mjs";
+import { money, summarize } from "./domain.mjs";
 import {
   installments,
   interpretFinance,
@@ -48,13 +48,15 @@ export function Intelligence({
   reload,
   page,
   records,
+  demo = false,
 }: {
   org: Org;
   reload: () => Promise<void>;
   page: string;
   records: Row[];
+  demo?: boolean;
 }) {
-  const cloudAvailable =
+  const cloudAvailable = !demo &&
     (import.meta as ImportMeta & { env?: { VITE_MDFLUX_CLOUD_AI?: string } })
       .env?.VITE_MDFLUX_CLOUD_AI === "true";
 
@@ -145,7 +147,7 @@ export function Intelligence({
     items: { name: string; due_date: string; read_at: string | null }[];
   }>();
   const [rule, setRule] = useState<{ days: number; enabled: boolean }>();
-  const advanced = org.subscription.plan !== "essencial";
+  const advanced = !demo && org.subscription.plan !== "essencial";
   const add = (role: Message["role"], content: string) =>
     setMessages((old) => [...old.slice(-49), { role, text: content }]);
 
@@ -180,6 +182,24 @@ export function Intelligence({
       const greeting = smallTalk(value);
       if (greeting) {
         add("Assistente", greeting);
+        return;
+      }
+      if (demo) {
+        const query = interpretFinance(value, lastQuery.current);
+        const summary = summarize(records);
+        if (query && !query.unsupported && ["default", undefined].includes(query.period)) {
+          const answers: Record<string, string> = {
+            balances: "Em aberto: " + money(summary.receivable) + " a receber e " + money(summary.payable) + " a pagar.",
+            receivables: "Você tem " + money(summary.receivable) + " a receber.",
+            payables: "Você tem " + money(summary.payable) + " a pagar.",
+          };
+          if (answers[query.intent]) {
+            lastQuery.current = { intent: query.intent, period: "default" };
+            add("Assistente", "Dados fictícios. " + answers[query.intent]);
+            return;
+          }
+        }
+        add("Assistente", "Na demonstração, pergunte quanto há para receber ou pagar. Use as ações da tela inicial para registrar uma movimentação fictícia.");
         return;
       }
       const command = normalize(value);
@@ -555,7 +575,7 @@ export function Intelligence({
           <header>
             <div>
               <strong>MD Flux Intelligence</strong>
-              <small>Área atual · {page || "Painel"}</small>
+              <small>{demo ? "Demonstração · dados fictícios" : "Área atual · " + (page || "Painel")}</small>
             </div>
             <button
               type="button"
@@ -568,9 +588,10 @@ export function Intelligence({
               <X size={20} />
             </button>
           </header>
-          <details className="intelligence-tools">
+          <details className="intelligence-tools" open={demo || undefined}>
             <summary>Sugestões e ferramentas</summary>
             <div className="intelligence-suggestions">
+              {!demo && (
               <button
                 type="button"
                 disabled={busy}
@@ -603,9 +624,10 @@ export function Intelligence({
                   ? "Desativar IA local"
                   : "Ativar IA local (download pelo navegador)"}
               </button>
+              )}
               {[
                 "Quanto tenho para receber?",
-                "Quais contas estão vencidas?",
+                demo ? "Quanto tenho para pagar?" : "Quais contas estão vencidas?",
                 ...(advanced
                   ? ["Analise meu caixa", "Cadastre um cliente chamado "]
                   : []),
