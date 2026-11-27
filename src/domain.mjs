@@ -3,6 +3,7 @@ export const plans = {
   profissional: { name: "Profissional", price: 99.9, users: 3 },
   empresarial: { name: "Empresarial", price: 129.9, users: 10 },
 };
+export const singlePlan = { key: "profissional", name: "MD Flux", price: 49.90, users: plans.profissional.users };
 export const money = (n) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     Number(n) || 0,
