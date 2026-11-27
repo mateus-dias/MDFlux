@@ -45,3 +45,11 @@ Verifique contratação, primeira cobrança, renovação, pendente, rejeitado, c
 - https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/create-preapproval/post
 - https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/get-authorized-payment/get
 - https://www.mercadopago.com.br/developers/pt/docs/subscriptions/additional-content/your-integrations/notifications/webhooks
+
+## Homologação do plano único
+
+1. Use um projeto Supabase de homologação vazio. Aplique as migrações SaaS 001 a 010. Os três arquivos do esquema legado ficam fora desse conjunto. Na homologação, o esquema da migração 008 foi instalado sem fixar a conta administrativa de produção.
+2. No Netlify, configure apenas o contexto de teste com a URL e as chaves do Supabase de homologação. Use a URL desse deploy para retorno e para o webhook de teste. Restrinja a chave de serviço ao backend.
+3. Use credenciais exclusivas de teste do Mercado Pago e contas de teste separadas para comprador e vendedor. Configure o segredo de assinatura do webhook de teste no backend. Preserve as credenciais e os contextos de produção.
+4. Ative em conjunto `MDFLUX_SINGLE_PLAN=true` no backend e `VITE_MDFLUX_SINGLE_PLAN=true` no build web. A tentativa guarda R$ 49,90 em `expected_amount` antes da chamada ao provedor. Checkouts legados sem valor gravado são comparados ao preço histórico. Um preço divergente retorna conflito antes de criar a assinatura.
+5. Valide checkout hospedado, notificação assinada, liberação de acesso, cancelamento e renovação no ambiente de teste. Preço, moeda, idempotência e valor legado foram verificados no banco de homologação com dados sintéticos em uma transação revertida.
