@@ -12,6 +12,7 @@ export default function Editor({
   onSave,
   onClose,
   demo,
+  inline = false,
 }: {
   kind: Kind;
   row?: Partial<Row>;
@@ -20,6 +21,7 @@ export default function Editor({
   onSave: (r: Partial<Row>) => Promise<void>;
   onClose: () => void;
   demo: boolean;
+  inline?: boolean;
 }) {
   const [name, setName] = useState(row?.name || ""),
     [status, setStatus] = useState(row?.status || modules[kind].statuses[0]),
@@ -117,12 +119,11 @@ export default function Editor({
       setBusy(false);
     }
   }
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
+  const form = (
       <section
-        className="modal"
-        role="dialog"
-        aria-modal="true"
+        className={inline ? "modal record-editor-inline" : "modal"}
+        role={inline ? "region" : "dialog"}
+        aria-modal={inline ? undefined : true}
         aria-label={modules[kind].single}
         onClick={(e) => e.stopPropagation()}
       >
@@ -637,6 +638,6 @@ export default function Editor({
           </footer>
         </form>
       </section>
-    </div>
   );
+  return inline ? form : <div className="modal-backdrop" onClick={onClose}>{form}</div>;
 }
