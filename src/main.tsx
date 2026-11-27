@@ -651,38 +651,60 @@ function Dashboard({
   rows,
   org,
   create,
+  home = false,
 }: {
   rows: Row[];
   org: Org;
   create: (k: Kind) => void;
+  home?: boolean;
 }) {
   const s = summarize(rows);
+  const businessDate = new Date();
+  const businessDay = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", dateStyle: "short" }).format(businessDate);
+  const businessMonth = businessDay.slice(0, 7);
+  const [year, month] = businessMonth.split("-").map(Number);
+  const periodLabel = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", month: "long", year: "numeric" }).format(businessDate);
   const months = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 5 + i);
-    const m = d.toISOString().slice(0, 7);
+    const m = new Date(Date.UTC(year, month - 6 + i, 15)).toISOString().slice(0, 7);
     let income = 0,
       expense = 0;
     for (const r of rows.filter((r) => ["income", "expense"].includes(r.kind)))
       for (const p of r.data.settlements || [])
         if (String(p.date).startsWith(m)) {
-          if (r.kind === "income") income += Number(p.amount);
-          else expense += Number(p.amount);
+          if (r.kind === "income") income += Math.round(Number(p.amount) * 100);
+          else expense += Math.round(Number(p.amount) * 100);
         }
-    return { m, income, expense };
+    return { m, income: income / 100, expense: expense / 100 };
   });
   const max = Math.max(1, ...months.flatMap((m) => [m.income, m.expense]));
+  const current = months[months.length - 1];
+  const received = home ? current.income : s.received;
+  const paid = home ? current.expense : s.paid;
+  const cash = (Math.round(received * 100) - Math.round(paid * 100)) / 100;
+  const pending = rows.filter((row) =>
+    ["income", "expense", "order"].includes(row.kind) &&
+    row.status !== "canceled" && row.due_date && Number(row.amount) > Number(row.paid),
+  );
+  const monthlyPending = pending.filter((row) => row.kind !== "order" && row.due_date?.startsWith(businessMonth));
+  const projectedCents = monthlyPending.reduce((total, row) => {
+    const remaining = Math.round(Number(row.amount) * 100) - Math.round(Number(row.paid) * 100);
+    return total + (row.kind === "income" ? remaining : -remaining);
+  }, Math.round(cash * 100));
+  const upcoming = (home ? pending.filter((row) => row.due_date! >= businessDay) : pending)
+    .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))
+    .slice(0, 5);
   return (
     <>
       <div className="page-title">
         <div>
           <h1>Vamos organizar seu negócio?</h1>
-          <p>Confira seu caixa, acompanhe vencimentos e escolha a próxima tarefa.</p>
+          <p>{home ? "Resumo financeiro de " + periodLabel : "Movimentações do período filtrado"}.</p>
         </div>
         <span className="date-chip">
           {new Date().toLocaleDateString("pt-BR", {
             day: "numeric",
             month: "long",
+            timeZone: "America/Sao_Paulo",
           })}
         </span>
       </div>
@@ -722,15 +744,15 @@ function Dashboard({
       </div>
       <div className="metric-grid">
         {[
-          ["Recebido", s.received, "Baixas registradas", "positive"],
-          ["Pago", s.paid, "Despesas efetivamente pagas", ""],
-          ["Resultado de caixa", s.cash, "Recebido menos pago", "blue"],
+          ["Receitas recebidas", received, "Baixas registradas", "positive"],
+          ["Despesas pagas", paid, "Despesas efetivamente pagas", ""],
+          ["Resultado de caixa", cash, cash < 0 ? "Déficit" : cash > 0 ? "Superávit" : "Resultado neutro", "blue"],
           ["A receber", s.receivable, "Valores ainda em aberto", ""],
           ["A pagar", s.payable, "Compromissos pendentes", ""],
           [
-            "Resultado previsto",
-            s.estimated,
-            "Receitas previstas − despesas",
+            home ? "Resultado de caixa projetado" : "Resultado previsto",
+            home ? projectedCents / 100 : s.estimated,
+            home ? "Caixa do mês e contas do mês em aberto" : "Receitas previstas − despesas",
             "",
           ],
         ].map(([label, value, sub, cls]) => (
@@ -808,27 +830,16 @@ function Dashboard({
       <div className="dashboard-columns">
         <section className="panel">
           <h3>Próximos compromissos</h3>
-          {rows
-            .filter(
-              (r) =>
-                ["income", "expense", "order"].includes(r.kind) &&
-                Number(r.amount) > Number(r.paid) &&
-                r.due_date,
-            )
-            .sort((a, b) =>
-              String(a.due_date).localeCompare(String(b.due_date)),
-            )
-            .slice(0, 5)
-            .map((r) => (
+          {upcoming.map((r) => (
               <div className="stat-row" key={r.id}>
                 <div>
                   <b>{r.name}</b>
-                  <small>{r.due_date}</small>
+                  <small>{String(r.due_date).split("-").reverse().join("/")} · {r.kind === "income" ? "Receber" : r.kind === "expense" ? "Pagar" : "Serviço"}</small>
                 </div>
                 <strong>{money(Number(r.amount) - Number(r.paid))}</strong>
               </div>
             ))}
-          {!rows.length && <p>Seus próximos vencimentos aparecerão aqui.</p>}
+          {!upcoming.length && <p>Sem próximos compromissos registrados.</p>}
         </section>
         <section className="panel">
           <h3>Atividades recentes</h3>
@@ -2339,7 +2350,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
           ) : (
             <>
               {!demo && ["owner", "manager", "finance", "viewer"].includes(org.role) && <FinancialAlerts rows={rows} />}
-              <Dashboard rows={rows} org={org} create={(k) => create(k)} />
+              <Dashboard rows={rows} org={org} create={(k) => create(k)} home />
               {demo && <Intelligence key={org.id} org={org} reload={reload} page={title} records={rows} demo />}
             </>
           )}
