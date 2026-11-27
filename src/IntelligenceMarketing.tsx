@@ -15,7 +15,7 @@ const features = [
   ["Relatórios inteligentes", true],
 ] as const;
 
-export function IntelligenceShowcase() {
+export function IntelligenceShowcase({ singleOffer = false }: { singleOffer?: boolean }) {
   return (
     <section
       className="intelligence-showcase"
@@ -30,8 +30,8 @@ export function IntelligenceShowcase() {
           Seu assistente trabalha com você. Pergunte, cadastre, consulte e
           automatize.
         </p>
-        <a href="#comparar-planos" className="secondary">
-          Comparar os planos
+        <a href={singleOffer ? "#planos" : "#comparar-planos"} className="secondary">
+          {singleOffer ? "Ver a assinatura" : "Comparar os planos"}
         </a>
       </div>
       <figure>
