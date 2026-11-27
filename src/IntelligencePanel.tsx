@@ -49,12 +49,14 @@ export function Intelligence({
   page,
   records,
   demo = false,
+  embedded = false,
 }: {
   org: Org;
   reload: () => Promise<void>;
   page: string;
   records: Row[];
   demo?: boolean;
+  embedded?: boolean;
 }) {
   const cloudAvailable = !demo &&
     (import.meta as ImportMeta & { env?: { VITE_MDFLUX_CLOUD_AI?: string } })
@@ -65,7 +67,8 @@ export function Intelligence({
     undefined,
   );
   const historyRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const open = embedded || drawerOpen;
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState("");
@@ -87,6 +90,10 @@ export function Intelligence({
     setListening(false);
     capture?.abort();
   }
+
+  useEffect(() => {
+    if (!open && speech.current) stopVoice();
+  }, [open]);
 
   function startVoice() {
     if (speech.current) {
@@ -174,7 +181,7 @@ export function Intelligence({
 
   async function run(prompt: string) {
     const value = prompt.trim();
-    if (!value || busy || preview || rule) return;
+    if (!value || busy || listening || preview || rule) return;
     add("Você", value);
     setText("");
     setBusy(true);
@@ -559,36 +566,36 @@ export function Intelligence({
 
   return (
     <>
-      <button
+      {!embedded && <button
         type="button"
         className="primary intelligence-launcher"
         aria-expanded={open}
         onClick={() => {
           if (open) stopVoice();
-          setOpen(!open);
+          setDrawerOpen(!drawerOpen);
         }}
       >
         <Sparkles size={18} aria-hidden="true" /> Assistente Inteligente
-      </button>
+      </button>}
       {open && (
-        <aside className="intelligence-panel" aria-label="MD Flux Intelligence">
+        <aside className={"intelligence-panel" + (embedded ? " intelligence-panel-embedded" : "")} aria-label="MD Flux Intelligence">
           <header>
             <div>
-              <strong>MD Flux Intelligence</strong>
+              <h2>{embedded ? "Como posso ajudar você agora?" : "MD Flux Intelligence"}</h2>
               <small>{demo ? "Demonstração · dados fictícios" : "Área atual · " + (page || "Painel")}</small>
             </div>
-            <button
+            {!embedded && <button
               type="button"
               aria-label="Fechar assistente"
               onClick={() => {
                 stopVoice();
-                setOpen(false);
+                setDrawerOpen(false);
               }}
             >
               <X size={20} />
-            </button>
+            </button>}
           </header>
-          <details className="intelligence-tools" open={demo || undefined}>
+          <details className="intelligence-tools" open={embedded || undefined}>
             <summary>Sugestões e ferramentas</summary>
             <div className="intelligence-suggestions">
               {!demo && (
@@ -627,7 +634,8 @@ export function Intelligence({
               )}
               {[
                 "Quanto tenho para receber?",
-                demo ? "Quanto tenho para pagar?" : "Quais contas estão vencidas?",
+                "Quanto tenho para pagar?",
+                ...(!demo ? ["Quais contas estão vencidas?"] : []),
                 ...(advanced
                   ? ["Analise meu caixa", "Cadastre um cliente chamado "]
                   : []),
