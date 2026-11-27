@@ -17,7 +17,7 @@ import {
   parseDue,
   smallTalk,
 } from "./intelligence.mjs";
-import type { Org, Row } from "./model";
+import type { Kind, Org, Row } from "./model";
 
 type Entry = {
   kind: string;
@@ -28,6 +28,15 @@ type Entry = {
   import_row?: boolean;
 };
 type Message = { role: "Você" | "Assistente"; text: string };
+
+const creationCommands: { kind: Kind; phrase: RegExp }[] = [
+  { kind: "client", phrase: /^(?:cadastrar|cadastre|criar|crie) (?:um |novo )?cliente$/ },
+  { kind: "quote", phrase: /^(?:criar|crie|gerar|gere|fazer|faca) (?:um |novo )?orcamento$/ },
+  { kind: "proposal", phrase: /^(?:criar|crie|gerar|gere) (?:uma |nova )?proposta(?: comercial)?$/ },
+  { kind: "contract", phrase: /^(?:criar|crie|gerar|gere) (?:um |novo )?contrato$/ },
+  { kind: "income", phrase: /^(?:registrar|registre|cadastrar|cadastre) (?:uma )?(?:entrada|receita|conta a receber)$/ },
+  { kind: "expense", phrase: /^(?:registrar|registre|cadastrar|cadastre) (?:uma )?(?:saida|despesa|conta a pagar)$/ },
+];
 
 type BrowserSpeech = {
   lang: string;
@@ -50,6 +59,7 @@ export function Intelligence({
   records,
   demo = false,
   embedded = false,
+  openRecordForm,
 }: {
   org: Org;
   reload: () => Promise<void>;
@@ -57,6 +67,7 @@ export function Intelligence({
   records: Row[];
   demo?: boolean;
   embedded?: boolean;
+  openRecordForm: (kind: Kind) => boolean;
 }) {
   const cloudAvailable = !demo &&
     (import.meta as ImportMeta & { env?: { VITE_MDFLUX_CLOUD_AI?: string } })
@@ -191,6 +202,16 @@ export function Intelligence({
         add("Assistente", greeting);
         return;
       }
+      const command = normalize(value);
+      const creation = command.replace(/^(?:quero|preciso|gostaria de)\s+/, "").replace(/[.!?]+$/, "");
+      const action = creationCommands.find(({ phrase }) => phrase.test(creation));
+      if (action) {
+        const opened = openRecordForm(action.kind);
+        add("Assistente", opened
+          ? "Abri o formulário. Preencha os dados e revise antes de salvar."
+          : "Seu perfil não permite cadastrar esse tipo de registro.");
+        return;
+      }
       if (demo) {
         const query = interpretFinance(value, lastQuery.current);
         const summary = summarize(records);
@@ -209,7 +230,6 @@ export function Intelligence({
         add("Assistente", "Na demonstração, pergunte quanto há para receber ou pagar. Use as ações da tela inicial para registrar uma movimentação fictícia.");
         return;
       }
-      const command = normalize(value);
       const registration =
         /^(?:cadastre|crie|registre)\s+(?:um[a]?\s+)?(cliente|fornecedor|servi[cç]o)\s+(?:chamad[oa]\s+)?(.+)$/i.exec(
           value,
@@ -635,6 +655,7 @@ export function Intelligence({
               {[
                 "Quanto tenho para receber?",
                 "Quanto tenho para pagar?",
+                ...(embedded ? ["Criar orçamento", "Registrar entrada"] : []),
                 ...(!demo ? ["Quais contas estão vencidas?"] : []),
                 ...(advanced
                   ? ["Analise meu caixa", "Cadastre um cliente chamado "]
