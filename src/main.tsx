@@ -1,4 +1,4 @@
-import { FinancialAlerts, Intelligence } from "./IntelligencePanel";
+import { Intelligence } from "./IntelligencePanel";
 import { IntelligenceShowcase, PlanComparison } from "./IntelligenceMarketing";
 import Captcha, { captchaKey } from "./Captcha";
 import AdminCustomers from "./AdminCustomers";
@@ -1763,7 +1763,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [nav, setNav] = useState(false),
-    [editor, setEditor] = useState<{ kind: Kind; row?: Partial<Row> } | null>(
+    [editor, setEditor] = useState<{ kind: Kind; row?: Partial<Row>; inline: boolean } | null>(
       null,
     ),
     [detail, setDetail] = useState<Row | null>(null),
@@ -1827,6 +1827,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
   useEffect(() => {
     setDetail(null);
     setNav(false);
+    setEditor((current) => current?.inline ? null : current);
   }, [path]);
   useEffect(() => {
     if (demo || !org) return;
@@ -1847,10 +1848,14 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
     );
   const allowed = demo || access(org.subscription, tick + serverDelta);
   const overview = !["plans", "settings", "reports"].includes(page) && !modules[page as Kind];
+  const profileName = user?.user_metadata.first_name || user?.user_metadata.full_name || user?.user_metadata.name;
+  const firstName = demo ? "Visitante" : typeof profileName === "string" ? profileName.trim().split(/\s+/)[0] : "";
+  const canAssistantCreate = (kind: Kind) => canWrite(org, kind) &&
+    (kind !== "order" || org.subscription.plan !== "essencial");
   const expired = !allowed && !["plans", "settings", "ticket"].includes(page);
   const title =
     page === "dashboard"
-      ? "Visão geral"
+      ? "Assistente Inteligente"
       : modules[page as Kind]?.name ||
         (
           {
@@ -1859,17 +1864,18 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
             settings: "Configurações",
           } as any
         )[page] ||
-        "Visão geral";
+        "Assistente Inteligente";
   function navigate(p: string) {
     go(base + "/" + p);
   }
-  function create(k: Kind, r?: Partial<Row>) {
+  function create(k: Kind, r?: Partial<Row>, inline = false) {
     if (!canWrite(org!, k)) {
       notify("Seu perfil não permite esta ação.");
       return;
     }
     setEditor({
       kind: k,
+      inline,
       row: r || { data: { terms: org?.settings.document_terms || "" } },
     });
   }
@@ -2026,7 +2032,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
           onClick={() => navigate("dashboard")}
         >
           <LayoutDashboard size={19} />
-          Visão geral
+          Assistente Inteligente
         </button>
         {["Comercial", "Relacionamento", "Financeiro", "Operação"].map(
           (group) => (
@@ -2211,34 +2217,37 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
               {error}
             </p>
           )}
-          {allowed && <>
-            {overview && !demo && ["owner", "manager", "finance", "viewer"].includes(org.role) && (
-              <FinancialAlerts rows={rows} />
-            )}
-            <Dashboard
-              rows={rows}
+          {allowed && (
+            <Intelligence
+              key={org.id}
               org={org}
-              create={create}
-              home
-              showOverview={overview}
-              assistant={
-                <Intelligence
-                  key={org.id}
+              reload={reload}
+              page={title}
+              records={rows}
+              demo={demo}
+              embedded={overview}
+              firstName={firstName}
+              canOpenRecordForm={canAssistantCreate}
+              openRecordForm={(kind) => {
+                if (!canAssistantCreate(kind)) return false;
+                create(kind, undefined, overview);
+                return true;
+              }}
+              recordForm={editor?.inline && overview && (
+                <Editor
+                  key={editor.kind}
+                  kind={editor.kind}
+                  row={editor.row}
+                  rows={rows}
                   org={org}
-                  reload={reload}
-                  page={title}
-                  records={rows}
                   demo={demo}
-                  embedded={overview}
-                  openRecordForm={(kind) => {
-                    if (!canWrite(org, kind)) return false;
-                    create(kind);
-                    return true;
-                  }}
+                  inline
+                  onSave={persist}
+                  onClose={() => setEditor(null)}
                 />
-              }
+              )}
             />
-          </>}
+          )}
           {expired ? (
             <section className="expired panel">
               <Clock size={44} />
@@ -2389,7 +2398,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
           ) : null}
         </main>
       </div>
-      {editor && (
+      {editor && !editor.inline && (
         <Editor
           kind={editor.kind}
           row={editor.row}
