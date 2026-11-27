@@ -4,7 +4,7 @@ import {
   enableLocalModel,
 } from "./intelligence-local";
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { Mic, MicOff, Sparkles, X } from "lucide-react";
 import { contactNumber } from "./commercial.mjs";
 import { endpoint, rpc } from "./api";
 import { money } from "./domain.mjs";
@@ -29,6 +29,20 @@ type Entry = {
 };
 type Message = { role: "Você" | "Assistente"; text: string };
 
+type BrowserSpeech = {
+  lang: string;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  abort: () => void;
+};
+
+type SpeechWindow = Window & {
+  SpeechRecognition?: new () => BrowserSpeech;
+  webkitSpeechRecognition?: new () => BrowserSpeech;
+};
+
 export function Intelligence({
   org,
   reload,
@@ -51,6 +65,66 @@ export function Intelligence({
   const historyRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [listening, setListening] = useState(false);
+  const [voiceNotice, setVoiceNotice] = useState("");
+  const speech = useRef<BrowserSpeech | null>(null);
+  const speechWindow = window as SpeechWindow;
+  const SpeechRecognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+
+  useEffect(() => {
+    return () => {
+      const capture = speech.current;
+      speech.current = null;
+      capture?.abort();
+    };
+  }, []);
+
+  function stopVoice() {
+    const capture = speech.current;
+    speech.current = null;
+    setListening(false);
+    capture?.abort();
+  }
+
+  function startVoice() {
+    if (speech.current) {
+      stopVoice();
+      setVoiceNotice("Captação cancelada.");
+      return;
+    }
+    if (!SpeechRecognition) return;
+    const capture = new SpeechRecognition();
+    capture.lang = "pt-BR";
+    capture.onresult = (event) => {
+      if (speech.current !== capture) return;
+      const transcript = event.results[0]?.[0]?.transcript.trim();
+      if (!transcript) return;
+      setText((current) => [current.trim(), transcript].filter(Boolean).join(" ").slice(0, 500));
+      setVoiceNotice("Revise a transcrição antes de enviar.");
+    };
+    capture.onerror = ({ error }) => {
+      if (speech.current !== capture) return;
+      setVoiceNotice(error === "not-allowed" || error === "service-not-allowed"
+        ? "Acesso ao microfone bloqueado. Revise a permissão do navegador ou digite sua mensagem."
+        : "Não foi possível transcrever. Tente novamente ou digite sua mensagem.");
+    };
+    capture.onend = () => {
+      if (speech.current !== capture) return;
+      speech.current = null;
+      setListening(false);
+      setVoiceNotice((notice) => notice || "Nenhuma fala foi reconhecida. Tente novamente ou digite.");
+    };
+    speech.current = capture;
+    setVoiceNotice("");
+    setListening(true);
+    try {
+      capture.start();
+    } catch {
+      speech.current = null;
+      setListening(false);
+      setVoiceNotice("Não foi possível abrir o microfone. Digite sua mensagem.");
+    }
+  }
   const [messages, setMessages] = useState<Message[]>([]);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<{ id: string; rows: Entry[] }>();
@@ -469,7 +543,10 @@ export function Intelligence({
         type="button"
         className="primary intelligence-launcher"
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (open) stopVoice();
+          setOpen(!open);
+        }}
       >
         <Sparkles size={18} aria-hidden="true" /> Assistente Inteligente
       </button>
@@ -483,7 +560,10 @@ export function Intelligence({
             <button
               type="button"
               aria-label="Fechar assistente"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                stopVoice();
+                setOpen(false);
+              }}
             >
               <X size={20} />
             </button>
@@ -719,24 +799,42 @@ export function Intelligence({
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void run(text);
+              if (!listening) void run(text);
             }}
           >
             <input
               aria-label="Mensagem para o assistente"
-              placeholder="Pergunte sobre sua empresa"
+              placeholder="Digite o que você precisa"
               value={text}
               maxLength={500}
               disabled={busy || !!preview || !!rule}
               onChange={(event) => setText(event.target.value)}
             />
+            {SpeechRecognition && (
+              <button
+                type="button"
+                aria-label={listening ? "Cancelar captação de voz" : "Ditado por voz"}
+                aria-pressed={listening}
+                disabled={!listening && (busy || !!preview || !!rule)}
+                onClick={startVoice}
+              >
+                {listening ? <MicOff size={18} aria-hidden="true" /> : <Mic size={18} aria-hidden="true" />}
+              </button>
+            )}
             <button
               className="primary"
-              disabled={busy || !!preview || !!rule || !text.trim()}
+              disabled={busy || !!preview || !!rule || listening || !text.trim()}
             >
               Enviar
             </button>
           </form>
+          <small className="intelligence-note" role="status">
+            {listening
+              ? "Ouvindo… Pressione o microfone para cancelar."
+              : voiceNotice || (SpeechRecognition
+                ? "O ditado pode usar o serviço de reconhecimento de voz do navegador."
+                : "Ditado indisponível neste navegador. Digite sua mensagem.")}
+          </small>
           {report?.overdue_income > 0 && (
             <small className="intelligence-note">
               Recebimentos vencidos · {money(report.overdue_income)}
