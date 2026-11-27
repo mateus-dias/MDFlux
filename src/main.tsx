@@ -2230,6 +2230,11 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
                   records={rows}
                   demo={demo}
                   embedded={overview}
+                  openRecordForm={(kind) => {
+                    if (!canWrite(org, kind)) return false;
+                    create(kind);
+                    return true;
+                  }}
                 />
               }
             />
