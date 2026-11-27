@@ -179,33 +179,31 @@ function Landing() {
               <span /> GESTÃO SIMPLES. NEGÓCIOS MAIS LEVES.
             </span>
             <h1>
-              Seu negócio
+              MD Flux, seu
               <br />
-              organizado.
-              <br />
-              <em>Seu tempo de volta.</em>
+              <em>assistente inteligente de negócios.</em>
             </h1>
             <p>
-              Do primeiro orçamento ao serviço concluído. Cuide dos clientes,
-              contratos e finanças em um só lugar — pelo computador ou celular.
+              Organize clientes, crie orçamentos, propostas e contratos e acompanhe
+              suas finanças pelo computador ou celular.
             </p>
             <div className="actions">
               <button
                 className="primary large"
-                onClick={() => go("/auth?signup=1")}
+                onClick={() => go("/demo")}
               >
-                Começar gratuitamente <ArrowUpRight size={18} />
+                Experimentar a demonstração <ArrowUpRight size={18} />
               </button>
-              <button className="secondary large" onClick={() => go("/demo")}>
-                Conhecer o sistema
+              <button className="secondary large" onClick={() => go("/auth?signup=1")}>
+                Criar conta
               </button>
             </div>
             <div className="hero-notes">
               <span>
-                <CheckCircle2 size={16} /> 3 dias grátis
+                <CheckCircle2 size={16} /> Demonstração com dados fictícios
               </span>
               <span>
-                <CheckCircle2 size={16} /> Sem cartão no teste
+                <CheckCircle2 size={16} /> Acesso à demonstração sem cadastro
               </span>
               <span>
                 <CheckCircle2 size={16} /> Acesso pelo celular
@@ -353,6 +351,16 @@ function Landing() {
         </section>
         <section className="faq">
           <h2>Ficou alguma dúvida?</h2>
+          <a
+            href={"https://wa.me/5516999944821?text=" + encodeURIComponent(
+              "Olá! Conheci o Assistente Inteligente MD Flux e gostaria de esclarecer algumas dúvidas antes de contratar.",
+            )}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => track("Lead")}
+          >
+            Falar com o MD Flux pelo WhatsApp
+          </a>
           {[
             [
               "Preciso instalar alguma coisa?",
