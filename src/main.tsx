@@ -668,9 +668,8 @@ function Dashboard({
     <>
       <div className="page-title">
         <div>
-          <span className="eyebrow">SEU NEGÓCIO, EM UMA VISÃO</span>
-          <h1>Olá! O que deseja fazer hoje?</h1>
-          <p>Menos tarefas espalhadas. Mais tempo para o que importa.</p>
+          <h1>Vamos organizar seu negócio?</h1>
+          <p>Confira seu caixa, acompanhe vencimentos e escolha a próxima tarefa.</p>
         </div>
         <span className="date-chip">
           {new Date().toLocaleDateString("pt-BR", {
@@ -2333,6 +2332,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
             <>
               {!demo && ["owner", "manager", "finance", "viewer"].includes(org.role) && <FinancialAlerts rows={rows} />}
               <Dashboard rows={rows} org={org} create={(k) => create(k)} />
+              {demo && <Intelligence key={org.id} org={org} reload={reload} page={title} records={rows} demo />}
             </>
           )}
         </main>
