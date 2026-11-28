@@ -1,4 +1,4 @@
-import { FinancialAlerts, Intelligence } from "./IntelligencePanel";
+import { Intelligence } from "./IntelligencePanel";
 import { IntelligenceShowcase, PlanComparison } from "./IntelligenceMarketing";
 import Captcha, { captchaKey } from "./Captcha";
 import AdminCustomers from "./AdminCustomers";
@@ -45,7 +45,7 @@ import {
   loadRows,
   save,
 } from "./api";
-import { money, plans, summarize, access, today } from "./domain.mjs";
+import { money, plans, singlePlan, summarize, access, today } from "./domain.mjs";
 import { modules, labels, documentKinds, canWrite } from "./model";
 import type { Kind, Row, Org } from "./model";
 import { companyLogo, exportCSV, exportXLSX, pdf, prepareCompanyLogo } from "./exports";
@@ -101,15 +101,19 @@ function Logo({ image, name = "MD Flux" }: { image?: string; name?: string } = {
     </a>
   );
 }
+const showSinglePlan = (import.meta as ImportMeta & { env?: { VITE_MDFLUX_SINGLE_PLAN?: string } })
+  .env?.VITE_MDFLUX_SINGLE_PLAN === "true";
+
 function Plans({ choose }: { choose: (p: string) => void }) {
+  const offers = showSinglePlan ? [[singlePlan.key, singlePlan] as const] : Object.entries(plans);
   return (
     <div className="plan-grid">
-      {Object.entries(plans).map(([key, p]) => (
+      {offers.map(([key, p]) => (
         <article
           className={"plan " + (key === "profissional" ? "featured" : "")}
           key={key}
         >
-          {key === "profissional" && (
+          {!showSinglePlan && key === "profissional" && (
             <span className="recommended">RECOMENDADO</span>
           )}
           <span className="eyebrow">{p.name}</span>
@@ -118,7 +122,7 @@ function Plans({ choose }: { choose: (p: string) => void }) {
             <small>/mês</small>
           </h2>
           <p>
-            {key === "essencial"
+            {showSinglePlan ? "Seu assistente para clientes, documentos e finanças." : key === "essencial"
               ? "Para organizar sua rotina."
               : key === "profissional"
                 ? "Para crescer com sua equipe."
@@ -147,7 +151,7 @@ function Plans({ choose }: { choose: (p: string) => void }) {
             className={key === "profissional" ? "primary" : "secondary"}
             onClick={() => choose(key)}
           >
-            Escolher {p.name}
+            {showSinglePlan ? "Assinar MD Flux" : "Escolher " + p.name}
           </button>
         </article>
       ))}
@@ -179,33 +183,31 @@ function Landing() {
               <span /> GESTÃO SIMPLES. NEGÓCIOS MAIS LEVES.
             </span>
             <h1>
-              Seu negócio
+              MD Flux, seu
               <br />
-              organizado.
-              <br />
-              <em>Seu tempo de volta.</em>
+              <em>assistente inteligente de negócios.</em>
             </h1>
             <p>
-              Do primeiro orçamento ao serviço concluído. Cuide dos clientes,
-              contratos e finanças em um só lugar — pelo computador ou celular.
+              Organize clientes, crie orçamentos, propostas e contratos e acompanhe
+              suas finanças pelo computador ou celular.
             </p>
             <div className="actions">
               <button
                 className="primary large"
-                onClick={() => go("/auth?signup=1")}
+                onClick={() => go("/demo")}
               >
-                Começar gratuitamente <ArrowUpRight size={18} />
+                Experimentar a demonstração <ArrowUpRight size={18} />
               </button>
-              <button className="secondary large" onClick={() => go("/demo")}>
-                Conhecer o sistema
+              <button className="secondary large" onClick={() => go("/auth?signup=1")}>
+                Criar conta
               </button>
             </div>
             <div className="hero-notes">
               <span>
-                <CheckCircle2 size={16} /> 3 dias grátis
+                <CheckCircle2 size={16} /> Demonstração com dados fictícios
               </span>
               <span>
-                <CheckCircle2 size={16} /> Sem cartão no teste
+                <CheckCircle2 size={16} /> Acesso à demonstração sem cadastro
               </span>
               <span>
                 <CheckCircle2 size={16} /> Acesso pelo celular
@@ -311,15 +313,14 @@ function Landing() {
             ))}
           </div>
         </section>
-        <IntelligenceShowcase />
+        <IntelligenceShowcase singleOffer={showSinglePlan} />
         <section id="planos">
           <div className="section-heading">
-            <span className="eyebrow">PLANOS QUE ACOMPANHAM SEU NEGÓCIO</span>
-            <h2>Escolha seu próximo passo.</h2>
-            <p>Teste por 72 horas. Cancele a renovação pela sua conta.</p>
+            <h2>{showSinglePlan ? "Assinatura mensal" : "Escolha seu próximo passo."}</h2>
+            <p>{showSinglePlan ? "Cancele a renovação pela sua conta." : "Teste por 72 horas. Cancele a renovação pela sua conta."}</p>
           </div>
           <Plans choose={(p) => go("/auth?signup=1&plan=" + p)} />
-          <PlanComparison choose={(p) => go("/auth?signup=1&plan=" + p)} />
+          {!showSinglePlan && <PlanComparison choose={(p) => go("/auth?signup=1&plan=" + p)} />}
         </section>
         <section className="custom">
           <div>
@@ -353,6 +354,16 @@ function Landing() {
         </section>
         <section className="faq">
           <h2>Ficou alguma dúvida?</h2>
+          <a
+            href={"https://wa.me/5516999944821?text=" + encodeURIComponent(
+              "Olá! Conheci o Assistente Inteligente MD Flux e gostaria de esclarecer algumas dúvidas antes de contratar.",
+            )}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => track("Lead")}
+          >
+            Falar com o MD Flux pelo WhatsApp
+          </a>
           {[
             [
               "Preciso instalar alguma coisa?",
@@ -643,39 +654,66 @@ function Dashboard({
   rows,
   org,
   create,
+  home = false,
+  showOverview = true,
+  assistant,
 }: {
   rows: Row[];
   org: Org;
   create: (k: Kind) => void;
+  home?: boolean;
+  showOverview?: boolean;
+  assistant?: React.ReactNode;
 }) {
-  const s = summarize(rows);
+  const overviewRows = showOverview ? rows : [];
+  const s = summarize(overviewRows);
+  const businessDate = new Date();
+  const businessDay = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", dateStyle: "short" }).format(businessDate);
+  const businessMonth = businessDay.slice(0, 7);
+  const [year, month] = businessMonth.split("-").map(Number);
+  const periodLabel = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", month: "long", year: "numeric" }).format(businessDate);
   const months = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 5 + i);
-    const m = d.toISOString().slice(0, 7);
+    const m = new Date(Date.UTC(year, month - 6 + i, 15)).toISOString().slice(0, 7);
     let income = 0,
       expense = 0;
-    for (const r of rows.filter((r) => ["income", "expense"].includes(r.kind)))
+    for (const r of overviewRows.filter((r) => ["income", "expense"].includes(r.kind)))
       for (const p of r.data.settlements || [])
         if (String(p.date).startsWith(m)) {
-          if (r.kind === "income") income += Number(p.amount);
-          else expense += Number(p.amount);
+          if (r.kind === "income") income += Math.round(Number(p.amount) * 100);
+          else expense += Math.round(Number(p.amount) * 100);
         }
-    return { m, income, expense };
+    return { m, income: income / 100, expense: expense / 100 };
   });
   const max = Math.max(1, ...months.flatMap((m) => [m.income, m.expense]));
+  const current = months[months.length - 1];
+  const received = home ? current.income : s.received;
+  const paid = home ? current.expense : s.paid;
+  const cash = (Math.round(received * 100) - Math.round(paid * 100)) / 100;
+  const pending = overviewRows.filter((row) =>
+    ["income", "expense", "order"].includes(row.kind) &&
+    row.status !== "canceled" && row.due_date && Number(row.amount) > Number(row.paid),
+  );
+  const monthlyPending = pending.filter((row) => row.kind !== "order" && row.due_date?.startsWith(businessMonth));
+  const projectedCents = monthlyPending.reduce((total, row) => {
+    const remaining = Math.round(Number(row.amount) * 100) - Math.round(Number(row.paid) * 100);
+    return total + (row.kind === "income" ? remaining : -remaining);
+  }, Math.round(cash * 100));
+  const upcoming = (home ? pending.filter((row) => row.due_date! >= businessDay) : pending)
+    .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))
+    .slice(0, 5);
   return (
     <>
+      {showOverview && <>
       <div className="page-title">
         <div>
-          <span className="eyebrow">SEU NEGÓCIO, EM UMA VISÃO</span>
-          <h1>Olá! O que deseja fazer hoje?</h1>
-          <p>Menos tarefas espalhadas. Mais tempo para o que importa.</p>
+          <h1>Vamos organizar seu negócio?</h1>
+          <p>{home ? "Resumo financeiro de " + periodLabel : "Movimentações do período filtrado"}.</p>
         </div>
         <span className="date-chip">
           {new Date().toLocaleDateString("pt-BR", {
             day: "numeric",
             month: "long",
+            timeZone: "America/Sao_Paulo",
           })}
         </span>
       </div>
@@ -715,15 +753,15 @@ function Dashboard({
       </div>
       <div className="metric-grid">
         {[
-          ["Recebido", s.received, "Baixas registradas", "positive"],
-          ["Pago", s.paid, "Despesas efetivamente pagas", ""],
-          ["Resultado de caixa", s.cash, "Recebido menos pago", "blue"],
+          ["Receitas recebidas", received, "Baixas registradas", "positive"],
+          ["Despesas pagas", paid, "Despesas efetivamente pagas", ""],
+          ["Resultado de caixa", cash, cash < 0 ? "Déficit" : cash > 0 ? "Superávit" : "Resultado neutro", "blue"],
           ["A receber", s.receivable, "Valores ainda em aberto", ""],
           ["A pagar", s.payable, "Compromissos pendentes", ""],
           [
-            "Resultado previsto",
-            s.estimated,
-            "Receitas previstas − despesas",
+            home ? "Resultado de caixa projetado" : "Resultado previsto",
+            home ? projectedCents / 100 : s.estimated,
+            home ? "Caixa do mês e contas do mês em aberto" : "Receitas previstas − despesas",
             "",
           ],
         ].map(([label, value, sub, cls]) => (
@@ -734,6 +772,9 @@ function Dashboard({
           </article>
         ))}
       </div>
+      </>}
+      {assistant}
+      {showOverview && <>
       <div className="dashboard-columns">
         <section className="panel">
           <div className="section-line">
@@ -779,7 +820,7 @@ function Dashboard({
             ["Ordens de serviço abertas", s.orders],
             [
               "Propostas aprovadas",
-              rows.filter(
+              overviewRows.filter(
                 (r) => r.kind === "proposal" && r.status === "approved",
               ).length,
             ],
@@ -801,31 +842,20 @@ function Dashboard({
       <div className="dashboard-columns">
         <section className="panel">
           <h3>Próximos compromissos</h3>
-          {rows
-            .filter(
-              (r) =>
-                ["income", "expense", "order"].includes(r.kind) &&
-                Number(r.amount) > Number(r.paid) &&
-                r.due_date,
-            )
-            .sort((a, b) =>
-              String(a.due_date).localeCompare(String(b.due_date)),
-            )
-            .slice(0, 5)
-            .map((r) => (
+          {upcoming.map((r) => (
               <div className="stat-row" key={r.id}>
                 <div>
                   <b>{r.name}</b>
-                  <small>{r.due_date}</small>
+                  <small>{String(r.due_date).split("-").reverse().join("/")} · {r.kind === "income" ? "Receber" : r.kind === "expense" ? "Pagar" : "Serviço"}</small>
                 </div>
                 <strong>{money(Number(r.amount) - Number(r.paid))}</strong>
               </div>
             ))}
-          {!rows.length && <p>Seus próximos vencimentos aparecerão aqui.</p>}
+          {!upcoming.length && <p>Sem próximos compromissos registrados.</p>}
         </section>
         <section className="panel">
           <h3>Atividades recentes</h3>
-          {rows.slice(0, 5).map((r) => (
+          {overviewRows.slice(0, 5).map((r) => (
             <div className="stat-row" key={r.id}>
               <span>
                 {r.name}
@@ -836,6 +866,7 @@ function Dashboard({
           ))}
         </section>
       </div>
+      </>}
     </>
   );
 }
@@ -1735,7 +1766,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [nav, setNav] = useState(false),
-    [editor, setEditor] = useState<{ kind: Kind; row?: Partial<Row> } | null>(
+    [editor, setEditor] = useState<{ kind: Kind; row?: Partial<Row>; inline: boolean } | null>(
       null,
     ),
     [detail, setDetail] = useState<Row | null>(null),
@@ -1761,15 +1792,22 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
         return;
       }
       setUser(data.session.user);
-      const c = await rpc("account_context");
-      setServerDelta(Date.parse(c.server_now) - Date.now());
-      setOrgs(c.organizations);
-      const current =
+      let c = await rpc("account_context");
+      let current =
         c.organizations.find(
           (o: Org) => o.id === sessionStorage.getItem("mdflux:org"),
         ) || c.organizations[0];
       if (!current)
         throw new Error("Nenhuma empresa disponível para esta conta.");
+      if (page === "plans" && current.role === "owner" && current.subscription.status !== "active") {
+        const confirmation = await endpoint("billing", { org: current.id, action: "reconcile" }).catch(() => null);
+        if (confirmation?.ok) {
+          c = await rpc("account_context");
+          current = c.organizations.find((o: Org) => o.id === current.id) ?? current;
+        }
+      }
+      setServerDelta(Date.parse(c.server_now) - Date.now());
+      setOrgs(c.organizations);
       setOrg(current);
       setAdmin(c.admin || c.platform_owner);
       setRows(await loadRows(current.id));
@@ -1799,6 +1837,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
   useEffect(() => {
     setDetail(null);
     setNav(false);
+    setEditor((current) => current?.inline ? null : current);
   }, [path]);
   useEffect(() => {
     if (demo || !org) return;
@@ -1818,10 +1857,15 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
       </div>
     );
   const allowed = demo || access(org.subscription, tick + serverDelta);
+  const overview = !["plans", "settings", "reports"].includes(page) && !modules[page as Kind];
+  const profileName = user?.user_metadata.first_name || user?.user_metadata.full_name || user?.user_metadata.name;
+  const firstName = demo ? "Visitante" : typeof profileName === "string" ? profileName.trim().split(/\s+/)[0] : "";
+  const canAssistantCreate = (kind: Kind) => canWrite(org, kind) &&
+    (kind !== "order" || org.subscription.plan !== "essencial");
   const expired = !allowed && !["plans", "settings", "ticket"].includes(page);
   const title =
     page === "dashboard"
-      ? "Visão geral"
+      ? "Assistente Inteligente"
       : modules[page as Kind]?.name ||
         (
           {
@@ -1830,17 +1874,18 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
             settings: "Configurações",
           } as any
         )[page] ||
-        "Visão geral";
+        "Assistente Inteligente";
   function navigate(p: string) {
     go(base + "/" + p);
   }
-  function create(k: Kind, r?: Partial<Row>) {
+  function create(k: Kind, r?: Partial<Row>, inline = false) {
     if (!canWrite(org!, k)) {
       notify("Seu perfil não permite esta ação.");
       return;
     }
     setEditor({
       kind: k,
+      inline,
       row: r || { data: { terms: org?.settings.document_terms || "" } },
     });
   }
@@ -1932,7 +1977,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
     }
     try {
       track("InitiateCheckout", { plan });
-      const r = await endpoint("checkout", { org: org!.id, plan });
+      const r = await endpoint("checkout", { org: org!.id, plan, displayedPrice: showSinglePlan ? singlePlan.price : plans[plan as keyof typeof plans].price });
       location.assign(r.url);
     } catch (e) {
       notify((e as Error).message);
@@ -1997,7 +2042,7 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
           onClick={() => navigate("dashboard")}
         >
           <LayoutDashboard size={19} />
-          Visão geral
+          Assistente Inteligente
         </button>
         {["Comercial", "Relacionamento", "Financeiro", "Operação"].map(
           (group) => (
@@ -2182,6 +2227,37 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
               {error}
             </p>
           )}
+          {allowed && (
+            <Intelligence
+              key={org.id}
+              org={org}
+              reload={reload}
+              page={title}
+              records={rows}
+              demo={demo}
+              embedded={overview}
+              firstName={firstName}
+              canOpenRecordForm={canAssistantCreate}
+              openRecordForm={(kind) => {
+                if (!canAssistantCreate(kind)) return false;
+                create(kind, undefined, overview);
+                return true;
+              }}
+              recordForm={editor?.inline && overview && (
+                <Editor
+                  key={editor.kind}
+                  kind={editor.kind}
+                  row={editor.row}
+                  rows={rows}
+                  org={org}
+                  demo={demo}
+                  inline
+                  onSave={persist}
+                  onClose={() => setEditor(null)}
+                />
+              )}
+            />
+          )}
           {expired ? (
             <section className="expired panel">
               <Clock size={44} />
@@ -2329,16 +2405,10 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
               detail={setDetail}
               archive={archive}
             />
-          ) : (
-            <>
-              {!demo && ["owner", "manager", "finance", "viewer"].includes(org.role) && <FinancialAlerts rows={rows} />}
-              <Dashboard rows={rows} org={org} create={(k) => create(k)} />
-            </>
-          )}
+          ) : null}
         </main>
       </div>
-      {!demo && allowed && <Intelligence key={org.id} org={org} reload={reload} page={title} records={rows} />}
-      {editor && (
+      {editor && !editor.inline && (
         <Editor
           kind={editor.kind}
           row={editor.row}

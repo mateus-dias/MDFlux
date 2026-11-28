@@ -99,7 +99,49 @@ export async function mp(path, method = "GET", data, key) {
     ...(data ? { body: JSON.stringify(data) } : {}),
     signal: AbortSignal.timeout(15000),
   });
-  if (!r.ok) throw new Error("Mercado Pago: " + r.status);
+  if (!r.ok) {
+    if (path === "/preapproval" && method === "POST") {
+      const payload = await r.json().catch(() => null);
+      const details = [payload?.message, payload?.error, ...(Array.isArray(payload?.cause)
+        ? payload.cause.map((cause) => cause?.description ?? cause?.message)
+        : [])].filter((value) => typeof value === "string").join(" ").toLowerCase();
+      const reasons = [
+        [/payer.*collector|collector.*payer|real or test users/, "buyer_seller_environment"],
+        [/access token|invalid_token|unauthorized|invalid credentials/, "credential"],
+        [/payer[_ ]email|invalid email|invalid payer/, "buyer_email"],
+        [/back[_ ]url|redirect[_ ]url/, "return_url"],
+        [/preapproval[_ ]plan|application[_ ]id|client[_ ]id/, "application"],
+        [/card[_ ]token/, "card_token"],
+        [/auto_recurring|transaction_amount|currency_id/, "recurrence_or_value"],
+      ];
+      const reason = reasons.find(([pattern]) => pattern.test(details))?.[1] ?? "unknown";
+      const diagnostic = { status: r.status, reason };
+      if (process.env.MDFLUX_SINGLE_PLAN === "true" && reason === "unknown") {
+        // Keep only vocabulary used in validation errors. Never log provider payloads.
+        const safeWords = new Set((
+          "a account accounts action active allowed amount an and api application approval are authorized " +
+          "bad be belong both brazil buyer can cannot card collector configuration country create created " +
+          "credential credentials currency date disabled does due email enabled environment error expired " +
+          "failed field for found has have id in inactive integration internal invalid is it live malformed " +
+          "marketplace merchant mercado missing mode must no not of on only operation or pagar pago payer " +
+          "payment pending permission plan preapproval processing production provided real recurrence recurring " +
+          "rejected request required resource restriction same sandbox seller status subscription supported " +
+          "system test than the this to token transaction type unauthorized unavailable unprocessable " +
+          "unsupported url use user users valid validation value with without wrong conta comprador erro " +
+          "invalido nao pagamento pendente pre aprovacao vendedor already exist exists configure requested " +
+          "owner associated complete corresponding disabled entity cannot empty end external forbidden " +
+          "given greater https less maximum minimum operation parameter parameters positive return security " +
+          "service source start usable verification verified verify your"
+        ).split(" "));
+        const requestId = r.headers.get("x-request-id");
+        if (requestId && /^[a-f0-9-]{36}$/i.test(requestId)) diagnostic.providerRequestId = requestId;
+        const words = details.match(/[a-z0-9._@%+-]+/g) ?? [];
+        diagnostic.providerDetail = words.slice(0, 48).map((word) => safeWords.has(word) ? word : "…").join(" ");
+      }
+      console.warn("Mercado Pago recusou criar assinatura", diagnostic);
+    }
+    throw new Error("Mercado Pago: " + r.status);
+  }
   return r.json();
 }
 export function verifyWebhook(req, id, secret, now = Date.now()) {

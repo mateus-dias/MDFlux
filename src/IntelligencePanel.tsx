@@ -3,11 +3,11 @@ import {
   converseLocally,
   enableLocalModel,
 } from "./intelligence-local";
-import { useEffect, useRef, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Mic, MicOff, Sparkles, X } from "lucide-react";
 import { contactNumber } from "./commercial.mjs";
 import { endpoint, rpc } from "./api";
-import { money } from "./domain.mjs";
+import { money, summarize } from "./domain.mjs";
 import {
   installments,
   interpretFinance,
@@ -17,7 +17,7 @@ import {
   parseDue,
   smallTalk,
 } from "./intelligence.mjs";
-import type { Org, Row } from "./model";
+import type { Kind, Org, Row } from "./model";
 
 type Entry = {
   kind: string;
@@ -29,18 +29,54 @@ type Entry = {
 };
 type Message = { role: "Você" | "Assistente"; text: string };
 
+const creationCommands: { kind: Kind; label: string; phrase: RegExp }[] = [
+  { kind: "client", label: "Cadastrar cliente", phrase: /^(?:cadastrar|cadastre|criar|crie) (?:um |novo )?cliente$/ },
+  { kind: "quote", label: "Criar orçamento", phrase: /^(?:criar|crie|gerar|gere|fazer|faca) (?:um |novo )?orcamento$/ },
+  { kind: "proposal", label: "Gerar proposta", phrase: /^(?:criar|crie|gerar|gere) (?:uma |nova )?proposta(?: comercial)?$/ },
+  { kind: "contract", label: "Gerar contrato", phrase: /^(?:criar|crie|gerar|gere) (?:um |novo )?contrato$/ },
+  { kind: "order", label: "Criar OS", phrase: /^(?:criar|crie|abrir|abra|gerar|gere) (?:uma |nova )?(?:os|o\.s\.|ordem de servico)$/ },
+  { kind: "income", label: "Registrar entrada", phrase: /^(?:registrar|registre|cadastrar|cadastre) (?:uma )?(?:entrada|receita|conta a receber)$/ },
+  { kind: "expense", label: "Registrar saída", phrase: /^(?:registrar|registre|cadastrar|cadastre) (?:uma )?(?:saida|despesa|conta a pagar)$/ },
+];
+
+type BrowserSpeech = {
+  lang: string;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  abort: () => void;
+};
+
+type SpeechWindow = Window & {
+  SpeechRecognition?: new () => BrowserSpeech;
+  webkitSpeechRecognition?: new () => BrowserSpeech;
+};
+
 export function Intelligence({
   org,
   reload,
   page,
   records,
+  demo = false,
+  embedded = false,
+  openRecordForm,
+  firstName,
+  canOpenRecordForm,
+  recordForm,
 }: {
   org: Org;
   reload: () => Promise<void>;
   page: string;
   records: Row[];
+  demo?: boolean;
+  embedded?: boolean;
+  openRecordForm: (kind: Kind) => boolean;
+  firstName: string;
+  canOpenRecordForm: (kind: Kind) => boolean;
+  recordForm?: ReactNode;
 }) {
-  const cloudAvailable =
+  const cloudAvailable = !demo &&
     (import.meta as ImportMeta & { env?: { VITE_MDFLUX_CLOUD_AI?: string } })
       .env?.VITE_MDFLUX_CLOUD_AI === "true";
 
@@ -49,8 +85,73 @@ export function Intelligence({
     undefined,
   );
   const historyRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const open = embedded || drawerOpen;
   const [text, setText] = useState("");
+  const [listening, setListening] = useState(false);
+  const [voiceNotice, setVoiceNotice] = useState("");
+  const speech = useRef<BrowserSpeech | null>(null);
+  const speechWindow = window as SpeechWindow;
+  const SpeechRecognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+
+  useEffect(() => {
+    return () => {
+      const capture = speech.current;
+      speech.current = null;
+      capture?.abort();
+    };
+  }, []);
+
+  function stopVoice() {
+    const capture = speech.current;
+    speech.current = null;
+    setListening(false);
+    capture?.abort();
+  }
+
+  useEffect(() => {
+    if (!open && speech.current) stopVoice();
+  }, [open]);
+
+  function startVoice() {
+    if (speech.current) {
+      stopVoice();
+      setVoiceNotice("Captação cancelada.");
+      return;
+    }
+    if (!SpeechRecognition) return;
+    const capture = new SpeechRecognition();
+    capture.lang = "pt-BR";
+    capture.onresult = (event) => {
+      if (speech.current !== capture) return;
+      const transcript = event.results[0]?.[0]?.transcript.trim();
+      if (!transcript) return;
+      setText((current) => [current.trim(), transcript].filter(Boolean).join(" ").slice(0, 500));
+      setVoiceNotice("Revise a transcrição antes de enviar.");
+    };
+    capture.onerror = ({ error }) => {
+      if (speech.current !== capture) return;
+      setVoiceNotice(error === "not-allowed" || error === "service-not-allowed"
+        ? "Acesso ao microfone bloqueado. Revise a permissão do navegador ou digite sua mensagem."
+        : "Não foi possível transcrever. Tente novamente ou digite sua mensagem.");
+    };
+    capture.onend = () => {
+      if (speech.current !== capture) return;
+      speech.current = null;
+      setListening(false);
+      setVoiceNotice((notice) => notice || "Nenhuma fala foi reconhecida. Tente novamente ou digite.");
+    };
+    speech.current = capture;
+    setVoiceNotice("");
+    setListening(true);
+    try {
+      capture.start();
+    } catch {
+      speech.current = null;
+      setListening(false);
+      setVoiceNotice("Não foi possível abrir o microfone. Digite sua mensagem.");
+    }
+  }
   const [messages, setMessages] = useState<Message[]>([]);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<{ id: string; rows: Entry[] }>();
@@ -71,7 +172,7 @@ export function Intelligence({
     items: { name: string; due_date: string; read_at: string | null }[];
   }>();
   const [rule, setRule] = useState<{ days: number; enabled: boolean }>();
-  const advanced = org.subscription.plan !== "essencial";
+  const advanced = !demo && org.subscription.plan !== "essencial";
   const add = (role: Message["role"], content: string) =>
     setMessages((old) => [...old.slice(-49), { role, text: content }]);
 
@@ -94,11 +195,11 @@ export function Intelligence({
   useEffect(() => {
     const history = historyRef.current;
     if (open && history) history.scrollTop = history.scrollHeight;
-  }, [open, messages, busy, preview, rule]);
+  }, [open, messages, busy, preview, rule, Boolean(recordForm)]);
 
   async function run(prompt: string) {
     const value = prompt.trim();
-    if (!value || busy || preview || rule) return;
+    if (!value || busy || listening || preview || rule || recordForm) return;
     add("Você", value);
     setText("");
     setBusy(true);
@@ -109,6 +210,33 @@ export function Intelligence({
         return;
       }
       const command = normalize(value);
+      const creation = command.replace(/^(?:quero|preciso|gostaria de)\s+/, "").replace(/[.!?]+$/, "");
+      const action = creationCommands.find(({ phrase }) => phrase.test(creation));
+      if (action) {
+        const opened = openRecordForm(action.kind);
+        add("Assistente", opened
+          ? "Abri o formulário. Preencha os dados e revise antes de salvar."
+          : "Seu perfil não permite cadastrar esse tipo de registro.");
+        return;
+      }
+      if (demo) {
+        const query = interpretFinance(value, lastQuery.current);
+        const summary = summarize(records);
+        if (query && !query.unsupported && ["default", undefined].includes(query.period)) {
+          const answers: Record<string, string> = {
+            balances: "Em aberto: " + money(summary.receivable) + " a receber e " + money(summary.payable) + " a pagar.",
+            receivables: "Você tem " + money(summary.receivable) + " a receber.",
+            payables: "Você tem " + money(summary.payable) + " a pagar.",
+          };
+          if (answers[query.intent]) {
+            lastQuery.current = { intent: query.intent, period: "default" };
+            add("Assistente", "Dados fictícios. " + answers[query.intent]);
+            return;
+          }
+        }
+        add("Assistente", "Na demonstração, pergunte quanto há para receber ou pagar. Use as ações da tela inicial para registrar uma movimentação fictícia.");
+        return;
+      }
       const registration =
         /^(?:cadastre|crie|registre)\s+(?:um[a]?\s+)?(cliente|fornecedor|servi[cç]o)\s+(?:chamad[oa]\s+)?(.+)$/i.exec(
           value,
@@ -465,32 +593,39 @@ export function Intelligence({
 
   return (
     <>
-      <button
+      {!embedded && <button
         type="button"
         className="primary intelligence-launcher"
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (open) stopVoice();
+          setDrawerOpen(!drawerOpen);
+        }}
       >
         <Sparkles size={18} aria-hidden="true" /> Assistente Inteligente
-      </button>
+      </button>}
       {open && (
-        <aside className="intelligence-panel" aria-label="MD Flux Intelligence">
+        <aside className={"intelligence-panel" + (embedded ? " intelligence-panel-embedded" : "")} aria-label="MD Flux Intelligence">
           <header>
             <div>
-              <strong>MD Flux Intelligence</strong>
-              <small>Área atual · {page || "Painel"}</small>
+              {embedded ? <h1>Assistente Inteligente</h1> : <h2>Assistente Inteligente</h2>}
+              <small>{demo ? "Demonstração · dados fictícios" : "Área atual · " + (page || "Painel")}</small>
             </div>
-            <button
+            {!embedded && <button
               type="button"
               aria-label="Fechar assistente"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                stopVoice();
+                setDrawerOpen(false);
+              }}
             >
               <X size={20} />
-            </button>
+            </button>}
           </header>
           <details className="intelligence-tools">
             <summary>Sugestões e ferramentas</summary>
             <div className="intelligence-suggestions">
+              {!demo && (
               <button
                 type="button"
                 disabled={busy}
@@ -523,9 +658,11 @@ export function Intelligence({
                   ? "Desativar IA local"
                   : "Ativar IA local (download pelo navegador)"}
               </button>
+              )}
               {[
                 "Quanto tenho para receber?",
-                "Quais contas estão vencidas?",
+                "Quanto tenho para pagar?",
+                ...(!demo ? ["Quais contas estão vencidas?"] : []),
                 ...(advanced
                   ? ["Analise meu caixa", "Cadastre um cliente chamado "]
                   : []),
@@ -565,6 +702,22 @@ export function Intelligence({
             role="log"
             aria-live="polite"
           >
+            {embedded && (
+              <section className="intelligence-opening" aria-label="Mensagem inicial do assistente">
+                <strong>Assistente</strong>
+                <OpeningSummary firstName={firstName} records={records} financeRole={financeRole} />
+                <h2>Como posso ajudar você agora?</h2>
+                <div className="intelligence-suggestions" aria-label="Ações do assistente">
+                  {[...creationCommands.filter(({ kind }) => canOpenRecordForm(kind)).map(({ label }) => label),
+                    ...(financeRole ? ["Quanto tenho para receber?", "Quanto tenho para pagar?"] : []),
+                  ].map((label) => (
+                    <button key={label} type="button" disabled={busy || listening || !!preview || !!rule || !!recordForm} onClick={() => void run(label)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             {messages.map((message, index) => (
               <p
                 key={index}
@@ -709,6 +862,7 @@ export function Intelligence({
                 </button>
               </section>
             )}
+            {recordForm}
           </div>
           {cloudAvailable && (
             <small className="intelligence-note">
@@ -719,24 +873,42 @@ export function Intelligence({
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void run(text);
+              if (!listening) void run(text);
             }}
           >
             <input
               aria-label="Mensagem para o assistente"
-              placeholder="Pergunte sobre sua empresa"
+              placeholder="Digite o que você precisa"
               value={text}
               maxLength={500}
-              disabled={busy || !!preview || !!rule}
+              disabled={busy || !!preview || !!rule || !!recordForm}
               onChange={(event) => setText(event.target.value)}
             />
+            {SpeechRecognition && (
+              <button
+                type="button"
+                aria-label={listening ? "Cancelar captação de voz" : "Ditado por voz"}
+                aria-pressed={listening}
+                disabled={!listening && (busy || !!preview || !!rule || !!recordForm)}
+                onClick={startVoice}
+              >
+                {listening ? <MicOff size={18} aria-hidden="true" /> : <Mic size={18} aria-hidden="true" />}
+              </button>
+            )}
             <button
               className="primary"
-              disabled={busy || !!preview || !!rule || !text.trim()}
+              disabled={busy || !!preview || !!rule || listening || !!recordForm || !text.trim()}
             >
               Enviar
             </button>
           </form>
+          <small className="intelligence-note" role="status">
+            {listening
+              ? "Ouvindo… Pressione o microfone para cancelar."
+              : voiceNotice || (SpeechRecognition
+                ? "O ditado pode usar o serviço de reconhecimento de voz do navegador."
+                : "Ditado indisponível neste navegador. Digite sua mensagem.")}
+          </small>
           {report?.overdue_income > 0 && (
             <small className="intelligence-note">
               Recebimentos vencidos · {money(report.overdue_income)}
@@ -748,33 +920,82 @@ export function Intelligence({
   );
 }
 
-export function FinancialAlerts({ rows }: { rows: Row[] }) {
-  const today = localDate();
-  const pending = rows.filter(
-    (row) =>
-      (row.kind === "income" || row.kind === "expense") &&
-      row.due_date &&
-      Number(row.amount) > Number(row.paid),
-  );
-  const late = pending.filter((row) => row.due_date! < today);
-  const due = pending.filter((row) => row.due_date === today);
+function OpeningSummary({ firstName, records, financeRole }: {
+  firstName: string;
+  records: Row[];
+  financeRole: boolean;
+}) {
+  const now = new Date();
+  const zone = "America/Sao_Paulo";
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: zone, dateStyle: "short" }).format(now);
+  const month = today.slice(0, 7);
+  const monthLabel = new Intl.DateTimeFormat("pt-BR", { timeZone: zone, month: "long", year: "numeric" }).format(now);
+  const todayLabel = new Intl.DateTimeFormat("pt-BR", { timeZone: zone, dateStyle: "long" }).format(now);
+  const formatDay = (date: string) => date.slice(0, 10).split("-").reverse().join("/");
+  const cents = (amount: unknown) => Math.round((Number(amount) || 0) * 100);
+  const active = records.filter((row) => !["canceled", "archived"].includes(row.status));
+  const finance = financeRole ? active.filter((row) => row.kind === "income" || row.kind === "expense") : [];
+  let received = 0, paid = 0, receivable = 0, payable = 0, projected = 0;
+  const commitments: { id: string; name: string; date: string; label: string; balance?: number }[] = [];
+
+  for (const row of finance) {
+    const income = row.kind === "income";
+    for (const payment of row.data?.settlements || []) {
+      const date = String(payment.date);
+      if (!date.startsWith(month) || date > today) continue;
+      if (income) received += cents(payment.amount);
+      else paid += cents(payment.amount);
+    }
+    const balance = Math.max(0, cents(row.amount) - cents(row.paid));
+    if (!balance) continue;
+    if (income) receivable += balance;
+    else payable += balance;
+    if (row.due_date?.startsWith(month)) projected += income ? balance : -balance;
+    if (row.due_date) commitments.push({
+      id: row.id, name: row.name, date: row.due_date, label: income ? "Receber" : "Pagar", balance,
+    });
+  }
+  for (const row of active) {
+    if (row.kind !== "order" || row.status === "completed") continue;
+    const date = String(row.data?.scheduled || row.due_date || "");
+    if (date.slice(0, 10) >= today) commitments.push({ id: row.id, name: row.name, date, label: "Serviço" });
+  }
+  const late = commitments.filter(({ date }) => date.slice(0, 10) < today);
+  const upcoming = commitments.filter(({ date }) => date.slice(0, 10) >= today)
+    .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+  const cash = received - paid;
+  const quotes = active.filter((row) => row.kind === "quote" && ["draft", "sent", "pending"].includes(row.status)).length;
+  const orders = active.filter((row) => row.kind === "order" && row.status !== "completed").length;
+  const metrics = [
+    ["Receitas recebidas", received], ["Despesas pagas", paid], ["Resultado de caixa", cash],
+    ["Em aberto a receber", receivable], ["Em aberto a pagar", payable], ["Caixa projetado no mês", cash + projected],
+  ] as const;
+
   return (
-    <section
-      className="intelligence-summary"
-      aria-labelledby="summary-intelligence"
-    >
-      <h2 id="summary-intelligence">Seu resumo inteligente</h2>
-      <p>
-        {late.length
-          ? late.length + " conta(s) vencida(s)."
-          : "Nenhuma conta vencida."}{" "}
-        {due.length
-          ? due.length + " vencimento(s) hoje."
-          : "Nenhum vencimento hoje."}
-      </p>
-      {late.some((row) => row.kind === "income") && (
-        <p>Consulte as contas a receber no Assistente Inteligente.</p>
+    <>
+      <p className="opening-greeting">Olá{firstName ? ", " + firstName : ""}! Hoje é {todayLabel}.</p>
+      {financeRole && (
+        <>
+          <h2>Resumo financeiro de {monthLabel}</h2>
+          <dl className="opening-metrics">
+            {metrics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value / 100)}</dd></div>)}
+          </dl>
+          <p>A projeção soma o caixa realizado e as contas em aberto com vencimento neste mês.</p>
+          {late.length > 0 && <p>Você tem {late.length} {late.length === 1 ? "conta vencida" : "contas vencidas"}.</p>}
+        </>
       )}
-    </section>
+      <h2>Próximos compromissos</h2>
+      {upcoming.length > 0 ? (
+        <ul className="opening-commitments">
+          {upcoming.map(({ id, name, date, label, balance }) => (
+            <li key={id}>
+              <span><strong>{name}</strong><small>{formatDay(date)}{date.length > 10 ? " às " + date.slice(11, 16) : ""} · {label}</small></span>
+              {balance !== undefined && <b>{money(balance / 100)}</b>}
+            </li>
+          ))}
+        </ul>
+      ) : <p>Não encontrei próximos compromissos nos registros disponíveis.</p>}
+      {(quotes > 0 || orders > 0) && <p>Para acompanhar: {quotes} orçamento(s) em andamento e {orders} ordem(ns) de serviço aberta(s).</p>}
+    </>
   );
 }

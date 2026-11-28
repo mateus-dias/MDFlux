@@ -2002,3 +2002,44 @@ input[type="file"] {
   .plan-comparison thead th:first-child { width:36%; }
   .plan-comparison tfoot button { width:100%; min-width:0; padding-inline:.15rem; }
 }
+
+.intelligence-panel header h2 { margin:0; font-size:1.15rem; }
+.intelligence-panel-embedded {
+  position:static; width:100%; height:auto; min-width:0; margin:1rem 0;
+  padding:1rem; border-radius:1rem; box-shadow:none;
+}
+.intelligence-panel-embedded .intelligence-history { flex:0 1 auto; max-height:24rem; }
+.intelligence-panel-embedded .intelligence-history:empty { display:none; }
+.intelligence-panel-embedded .intelligence-tools { max-height:none; }
+
+.intelligence-panel-embedded {
+  max-width: 54rem; margin: 0 auto; padding: 0; border: 0; background: transparent;
+}
+.intelligence-panel-embedded > header h1 { margin: 0; font-size: clamp(1.4rem, 3vw, 1.9rem); }
+.intelligence-panel-embedded > .intelligence-history { max-height: none; overflow: visible; padding: 0; }
+.intelligence-history .intelligence-opening {
+  background: #fff; border: 1px solid #d8e6ff; border-radius: 1.15rem;
+  padding: clamp(.9rem, 2.8vw, 1.6rem); margin-bottom: 1rem;
+}
+.intelligence-opening > strong { font-size: .8rem; color: #385474; }
+.intelligence-opening h2 { margin: 1rem 0 .5rem; font-size: 1.05rem; }
+.intelligence-history .intelligence-opening p { background: none; padding: 0; margin: .55rem 0; }
+.intelligence-opening .opening-greeting { font-size: 1.2rem; font-weight: 650; }
+.opening-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: .5rem; margin: .65rem 0; }
+.opening-metrics div { background: #edf4ff; border-radius: .65rem; padding: .65rem .75rem; }
+.opening-metrics dt { font-size: .85rem; color: #385474; }
+.opening-metrics dd { margin: .25rem 0 0; font-weight: 700; }
+.opening-commitments { list-style: none; padding: 0; margin: .5rem 0; }
+.opening-commitments li { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .65rem 0; border-bottom: 1px solid #e1eaff; }
+.opening-commitments small { display: block; margin-top: .2rem; color: #385474; }
+.opening-commitments b { white-space: nowrap; }
+.intelligence-panel-embedded > form {
+  position: sticky; bottom: env(safe-area-inset-bottom, 0px); z-index: 2;
+  padding: .65rem; background: #fff; border: 1px solid #cbdcf4; border-radius: 1rem;
+  box-shadow: 0 4px 18px #102c4b12;
+}
+.intelligence-history .record-editor-inline {
+  max-height: none; width: 100%; overflow: visible; margin-block: .75rem;
+  padding: clamp(.85rem, 3vw, 1.6rem); background: #fff; border-radius: 1rem;
+  border: 1px solid #d8e6ff; box-shadow: none; white-space: normal;
+}

@@ -56,8 +56,12 @@ export default wrap(async (req) => {
     p.metadata?.preapproval_id ||
     p.point_of_interaction?.transaction_data?.subscription_id;
   if (!preapproval) return result({ ok: true, ignored: "unlinked" });
+  return confirmSubscriptionPayment(d, p, preapproval);
+});
+
+export async function confirmSubscriptionPayment(d, p, preapproval, attempt) {
   const sub = await mp("/preapproval/" + encodeURIComponent(preapproval));
-  let a = await checked(
+  let a = attempt ?? await checked(
     d
       .from("checkout_attempts")
       .select("*")
@@ -89,4 +93,16 @@ export default wrap(async (req) => {
       .eq('org_id',a.org_id).eq('provider_id',preapproval).eq('status','active'));
   }
   return result({ ok: true });
-});
+}
+
+export async function reconcileSubscriptionPayment(d, attempt) {
+  const subscriptionId = attempt.provider_id;
+  const invoices = await mp("/authorized_payments/search?preapproval_id=" + encodeURIComponent(subscriptionId));
+  const invoice = invoices.results?.find((entry) =>
+    entry.preapproval_id === subscriptionId && entry.payment?.status === "approved" &&
+    /^[0-9]+$/.test(String(entry.payment.id)));
+  if (!invoice) return result({ checked: true, approved: false });
+  const payment = await mp("/v1/payments/" + encodeURIComponent(invoice.payment.id));
+  if (payment.status !== "approved") return result({ checked: true, approved: false });
+  return confirmSubscriptionPayment(d, payment, subscriptionId, attempt);
+}

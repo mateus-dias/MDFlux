@@ -8,12 +8,18 @@ import {
   result,
   env,
 } from "../lib/core.mjs";
-import { plans } from "../../src/domain.mjs";
+import { plans, singlePlan } from "../../src/domain.mjs";
 import {recoverReservedCheckout} from '../lib/checkout-recovery.mjs';
 export default wrap(async (req) => {
   if (req.method !== "POST") return result({}, 405);
   const b = await body(req);
-  if (!plans[b.plan]) throw new Error("Plano inválido");
+  if (!Object.hasOwn(plans, b.plan)) throw new Error("Plano inválido");
+  const singleOffer = process.env.MDFLUX_SINGLE_PLAN === "true";
+  if (singleOffer && b.plan !== singlePlan.key) throw new Error("Plano não disponível para novas assinaturas");
+  const offer = singleOffer ? singlePlan : plans[b.plan];
+  if ((singleOffer || b.displayedPrice != null) && b.displayedPrice !== offer.price) {
+    return result({ error: "A oferta mudou. Atualize a página antes de continuar." }, 409);
+  }
   const { d, user } = await member(req, b.org, true);
   await limit(d, "checkout:" + user.id, 5, 300);
   const current = await checked(
@@ -30,7 +36,7 @@ export default wrap(async (req) => {
       .eq("org_id", b.org)
       .eq("active", true),
   );
-  if (count.length > plans[b.plan].users)
+  if (count.length > offer.users)
     throw new Error("Desative usuários antes de reduzir o plano.");
   const old = await checked(
     d
@@ -40,7 +46,9 @@ export default wrap(async (req) => {
       .in("status", ["creating", "pending"])
       .maybeSingle(),
   );
-  if(old && old.plan!==b.plan) throw new Error('Existe um checkout de outro plano em andamento. Contate o suporte para cancelar essa tentativa antes de trocar.');
+  if (old && (old.plan !== b.plan || Number(old.expected_amount ?? plans[old.plan]?.price) !== offer.price)) {
+    throw new Error("Existe um checkout com condições diferentes em andamento. Contate o suporte para resolver essa tentativa.");
+  }
   if (old?.url) return result({ url: old.url });
   if (old) {
     const recovered=await recoverReservedCheckout(d,old,mp);
@@ -54,7 +62,7 @@ export default wrap(async (req) => {
   const attempt = await checked(
     d
       .from("checkout_attempts")
-      .insert({ org_id: b.org, plan: b.plan })
+      .insert({ org_id: b.org, plan: b.plan, ...(singleOffer ? { expected_amount: offer.price } : {}) })
       .select()
       .single(),
   );
@@ -63,14 +71,14 @@ export default wrap(async (req) => {
       "/preapproval",
       "POST",
       {
-        reason: "MD Flux " + plans[b.plan].name,
+        reason: singleOffer ? offer.name : "MD Flux " + offer.name,
         external_reference: attempt.id,
         payer_email: user.email,
         back_url: env("APP_URL") + "/app/plans",
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: plans[b.plan].price,
+          transaction_amount: offer.price,
           currency_id: "BRL",
         },
         status: "pending",
