@@ -94,3 +94,15 @@ export async function confirmSubscriptionPayment(d, p, preapproval, attempt) {
   }
   return result({ ok: true });
 }
+
+export async function reconcileSubscriptionPayment(d, attempt) {
+  const subscriptionId = attempt.provider_id;
+  const invoices = await mp("/authorized_payments/search?preapproval_id=" + encodeURIComponent(subscriptionId));
+  const invoice = invoices.results?.find((entry) =>
+    entry.preapproval_id === subscriptionId && entry.payment?.status === "approved" &&
+    /^[0-9]+$/.test(String(entry.payment.id)));
+  if (!invoice) return result({ checked: true, approved: false });
+  const payment = await mp("/v1/payments/" + encodeURIComponent(invoice.payment.id));
+  if (payment.status !== "approved") return result({ checked: true, approved: false });
+  return confirmSubscriptionPayment(d, payment, subscriptionId, attempt);
+}
