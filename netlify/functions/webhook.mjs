@@ -56,8 +56,12 @@ export default wrap(async (req) => {
     p.metadata?.preapproval_id ||
     p.point_of_interaction?.transaction_data?.subscription_id;
   if (!preapproval) return result({ ok: true, ignored: "unlinked" });
+  return confirmSubscriptionPayment(d, p, preapproval);
+});
+
+export async function confirmSubscriptionPayment(d, p, preapproval, attempt) {
   const sub = await mp("/preapproval/" + encodeURIComponent(preapproval));
-  let a = await checked(
+  let a = attempt ?? await checked(
     d
       .from("checkout_attempts")
       .select("*")
@@ -89,4 +93,4 @@ export default wrap(async (req) => {
       .eq('org_id',a.org_id).eq('provider_id',preapproval).eq('status','active'));
   }
   return result({ ok: true });
-});
+}
