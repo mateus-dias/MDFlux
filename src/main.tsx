@@ -1792,15 +1792,22 @@ function Workspace({ demo, path }: { demo: boolean; path: string }) {
         return;
       }
       setUser(data.session.user);
-      const c = await rpc("account_context");
-      setServerDelta(Date.parse(c.server_now) - Date.now());
-      setOrgs(c.organizations);
-      const current =
+      let c = await rpc("account_context");
+      let current =
         c.organizations.find(
           (o: Org) => o.id === sessionStorage.getItem("mdflux:org"),
         ) || c.organizations[0];
       if (!current)
         throw new Error("Nenhuma empresa disponível para esta conta.");
+      if (page === "plans" && current.role === "owner" && current.subscription.status !== "active") {
+        const confirmation = await endpoint("billing", { org: current.id, action: "reconcile" }).catch(() => null);
+        if (confirmation?.ok) {
+          c = await rpc("account_context");
+          current = c.organizations.find((o: Org) => o.id === current.id) ?? current;
+        }
+      }
+      setServerDelta(Date.parse(c.server_now) - Date.now());
+      setOrgs(c.organizations);
       setOrg(current);
       setAdmin(c.admin || c.platform_owner);
       setRows(await loadRows(current.id));
